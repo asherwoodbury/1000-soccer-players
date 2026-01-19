@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1000 Soccer Players</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>1000 Soccer Players</h1>
+            <p class="subtitle">How many can you name?</p>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-value" id="player-count">0</span>
+                <span class="stat-label">/ 1000</span>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <form id="guess-form">
+                <input
+                    type="text"
+                    id="player-input"
+                    placeholder="Enter a player's name..."
+                    autocomplete="off"
+                    autofocus
+                >
+                <button type="submit">Guess</button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+
+        <div class="filters">
+            <input
+                type="text"
+                id="filter-input"
+                placeholder="Filter by club or country..."
+            >
+        </div>
+
+        <div class="players-section">
+            <h2>Guessed Players <span id="filtered-count"></span></h2>
+            <div id="players-list" class="players-list"></div>
+        </div>
+
+        <div id="player-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close">&times;</button>
+                <h2 id="modal-player-name"></h2>
+                <div class="modal-info">
+                    <p><strong>Nationality:</strong> <span id="modal-nationality"></span></p>
+                    <p><strong>Position:</strong> <span id="modal-position"></span></p>
+                </div>
+                <h3>Club History</h3>
+                <ul id="modal-clubs" class="club-history"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
