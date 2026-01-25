@@ -59,6 +59,20 @@ header h1 {
     font-size: 3rem;
     font-weight: 700;
     color: var(--primary);
+    transition: transform 0.2s ease;
+}
+
+.stat-value.bump {
+    animation: countBump 0.3s ease;
+}
+
+@keyframes countBump {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
 }
 
 .stat-label {
@@ -110,16 +124,56 @@ header h1 {
     cursor: not-allowed;
 }
 
+#guess-form button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+#guess-form button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+#guess-form button.loading {
+    position: relative;
+    color: transparent;
+}
+
+#guess-form button.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .message {
     margin-top: 0.75rem;
     padding: 0.75rem 1rem;
     border-radius: 8px;
     font-size: 0.9rem;
-    display: none;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
 }
 
 .message.visible {
-    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .message.success {
@@ -157,6 +211,17 @@ header h1 {
     border-color: var(--primary);
 }
 
+#filter-input:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+#player-input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
 .players-section h2 {
     font-size: 1.1rem;
     font-weight: 600;
@@ -182,12 +247,37 @@ header h1 {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--border);
     cursor: pointer;
-    transition: box-shadow 0.2s, border-color 0.2s;
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s ease;
 }
 
 .player-card:hover {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.player-card:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.player-card:active {
+    transform: translateY(0);
+}
+
+.player-card.new {
+    animation: cardSlideIn 0.3s ease;
+}
+
+@keyframes cardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .player-name {
@@ -226,6 +316,34 @@ header h1 {
     display: none;
 }
 
+.modal:not(.hidden) {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal:not(.hidden) .modal-content {
+    animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .modal-content {
     background: var(--card-bg);
     border-radius: 12px;
@@ -251,6 +369,11 @@ header h1 {
 
 .modal-close:hover {
     color: var(--text);
+}
+
+.modal-close:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .modal-content h2 {

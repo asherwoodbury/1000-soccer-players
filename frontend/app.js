@@ -81,6 +81,7 @@ async function handleGuess(e) {
     playerInput.disabled = true;
     const submitBtn = guessForm.querySelector('button');
     submitBtn.disabled = true;
+    submitBtn.classList.add('loading');
 
     try {
         // Look up the player
@@ -97,6 +98,7 @@ async function handleGuess(e) {
             }
             playerInput.disabled = false;
             submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
             playerInput.select();
             return;
         }
@@ -121,11 +123,12 @@ async function handleGuess(e) {
                 position: lookupData.player.position,
                 top_clubs: lookupData.player.top_clubs,
                 clubs: lookupData.player.clubs,
-                guessed_at: new Date().toISOString()
+                guessed_at: new Date().toISOString(),
+                isNew: true
             });
-        }
 
-        updateUI();
+            updateUI(true);
+        }
         playerInput.value = '';
 
     } catch (e) {
@@ -135,6 +138,7 @@ async function handleGuess(e) {
 
     playerInput.disabled = false;
     submitBtn.disabled = false;
+    submitBtn.classList.remove('loading');
     playerInput.focus();
 }
 
@@ -142,12 +146,21 @@ function handleFilter() {
     renderPlayersList();
 }
 
-function updateUI() {
+function updateUI(isNewPlayer = false) {
     playerCountEl.textContent = guessedPlayers.length;
-    renderPlayersList();
+
+    // Animate the count when a new player is added
+    if (isNewPlayer) {
+        playerCountEl.classList.add('bump');
+        setTimeout(() => {
+            playerCountEl.classList.remove('bump');
+        }, 300);
+    }
+
+    renderPlayersList(isNewPlayer);
 }
 
-function renderPlayersList() {
+function renderPlayersList(highlightNew = false) {
     const filter = filterInput.value.toLowerCase().trim();
 
     let filteredPlayers = guessedPlayers;
@@ -182,8 +195,10 @@ function renderPlayersList() {
         return;
     }
 
-    playersList.innerHTML = filteredPlayers.map(player => `
-        <div class="player-card" data-player-id="${player.id}">
+    playersList.innerHTML = filteredPlayers.map((player, index) => {
+        const isNew = highlightNew && index === 0 && player.isNew;
+        return `
+        <div class="player-card${isNew ? ' new' : ''}" data-player-id="${player.id}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(player.name)}">
             <div class="player-name">${escapeHtml(player.name)}</div>
             <div class="player-info">
                 ${escapeHtml(player.nationality || 'Unknown')} · ${escapeHtml(player.position || 'Unknown')}
@@ -192,19 +207,37 @@ function renderPlayersList() {
                 ${player.top_clubs?.map(c => escapeHtml(c)).join(', ') || 'No clubs'}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
-    // Add click handlers
+    // Clear the "new" flag after rendering
+    if (highlightNew && guessedPlayers.length > 0) {
+        guessedPlayers[0].isNew = false;
+    }
+
+    // Add click and keyboard handlers
     document.querySelectorAll('.player-card').forEach(card => {
-        card.addEventListener('click', () => {
+        const openModal = () => {
             const playerId = parseInt(card.dataset.playerId);
             const player = guessedPlayers.find(p => p.id === playerId);
             if (player) showPlayerModal(player);
+        };
+
+        card.addEventListener('click', openModal);
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openModal();
+            }
         });
     });
 }
 
+let lastFocusedElement = null;
+
 function showPlayerModal(player) {
+    // Store the element that had focus before opening modal
+    lastFocusedElement = document.activeElement;
+
     document.getElementById('modal-player-name').textContent = player.name;
     document.getElementById('modal-nationality').textContent = player.nationality || 'Unknown';
     document.getElementById('modal-position').textContent = player.position || 'Unknown';
@@ -229,10 +262,19 @@ function showPlayerModal(player) {
     }
 
     modal.classList.remove('hidden');
+
+    // Focus the close button for accessibility
+    modalClose.focus();
 }
 
 function closeModal() {
     modal.classList.add('hidden');
+
+    // Restore focus to the element that opened the modal
+    if (lastFocusedElement) {
+        lastFocusedElement.focus();
+        lastFocusedElement = null;
+    }
 }
 
 function showMessage(text, type = 'info') {
