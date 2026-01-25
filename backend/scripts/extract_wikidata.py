@@ -348,9 +348,12 @@ def insert_player_club(conn: sqlite3.Connection, player_id: int, club_id: int, c
         print(f"Error inserting player-club relationship: {e}")
 
 
-def main():
+def main(fetch_clubs: bool = True):
     """
     Main extraction process.
+
+    Args:
+        fetch_clubs: If True, also fetch club histories after player import.
     """
     print("=" * 60)
     print("Soccer Player Data Extraction from Wikidata")
@@ -376,17 +379,10 @@ def main():
     print(f"Total players to process: {len(all_players)}")
     print("=" * 60)
 
-    # Insert players and fetch their club histories
+    # Insert players
     processed = 0
     for player in all_players:
-        player_id = insert_player(conn, player)
-
-        if player_id:
-            # Fetch and insert club history
-            # Note: This is slow due to individual queries
-            # For initial import, we might skip detailed history
-            # and add it later or on-demand
-            pass
+        insert_player(conn, player)
 
         processed += 1
         if processed % 1000 == 0:
@@ -397,9 +393,16 @@ def main():
     conn.close()
 
     print(f"\n{'=' * 60}")
-    print(f"Extraction complete!")
+    print(f"Player extraction complete!")
     print(f"Database saved to: {DATABASE_PATH}")
     print("=" * 60)
+
+    # Optionally fetch club histories
+    if fetch_clubs:
+        print("\nNow fetching club histories...")
+        print("(This may take a while - run fetch_club_histories.py separately if needed)\n")
+        from fetch_club_histories import main as fetch_club_histories_main
+        fetch_club_histories_main()
 
 
 def fetch_club_histories_batch(player_ids: list[str], batch_size: int = 50):
@@ -413,4 +416,9 @@ def fetch_club_histories_batch(player_ids: list[str], batch_size: int = 50):
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="Extract soccer player data from Wikidata")
+    parser.add_argument("--no-clubs", action="store_true",
+                        help="Skip fetching club histories (faster, can run fetch_club_histories.py later)")
+    args = parser.parse_args()
+    main(fetch_clubs=not args.no_clubs)
