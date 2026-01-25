@@ -2,8 +2,24 @@
 
 # Run the 1000 Soccer Players app locally
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
+
 echo "Starting 1000 Soccer Players..."
 echo ""
+
+# Check if virtual environment exists, create if not
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+    source venv/bin/activate
+    echo "Installing dependencies..."
+    pip install -r backend/requirements.txt
+    echo ""
+else
+    source venv/bin/activate
+fi
 
 # Check if backend data exists
 if [ ! -f "backend/data/players.db" ]; then
