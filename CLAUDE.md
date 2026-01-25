@@ -22,6 +22,12 @@ python3 backend/scripts/extract_sample.py
 
 # Full Wikidata extraction (47k+ players, takes several minutes)
 python3 backend/scripts/extract_wikidata.py
+
+# Extract players only (faster, skip club histories)
+python3 backend/scripts/extract_wikidata.py --no-clubs
+
+# Fetch club histories for players already in database (batch queries)
+python3 backend/scripts/fetch_club_histories.py
 ```
 
 API documentation is auto-generated at http://localhost:8000/docs when backend is running.
@@ -50,3 +56,11 @@ This is a soccer player guessing game where users try to name 1000 players from 
 **Club History**: The `player_clubs` table tracks career history with start/end dates. National teams are flagged separately via `is_national_team` boolean.
 
 **Session State**: Backend is stateless - all user progress stored in database. Frontend localStorage only caches the session ID for recovery across page reloads.
+
+## Agent Workflows
+
+**After frontend changes**: Run the `ux-reviewer` agent to review UX improvements. After the review completes, run the `backlog-manager` agent to add any proposed larger improvements to BACKLOG.md.
+
+**After completing features/fixing bugs**: Run the `backlog-manager` agent to update BACKLOG.md with completed work and any new tasks discovered.
+
+**Before committing**: Run the `code-review-commit` agent to review changes before committing to git.
