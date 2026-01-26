@@ -14,7 +14,7 @@ Last updated: 2026-01-25
 ### UX Improvements (UX)
 | Item | Priority |
 |------|----------|
-| Smart Name Matching | HIGH |
+| Smart Name Matching | IN PROGRESS |
 | Progress Visualization | MEDIUM |
 | Player Statistics Dashboard | LOW |
 | Player Photos & Media | MEDIUM |
@@ -49,13 +49,35 @@ Last updated: 2026-01-25
 | Automated Test Suite | MEDIUM |
 | Rate Limiting & Abuse Prevention | MEDIUM |
 | Session ID Security | MEDIUM |
-| Refactor Player Matching Logic | MEDIUM |
 | Docker Containerization | MEDIUM |
 
 ---
 
 ## In Progress
-<!-- Tasks currently being worked on -->
+
+- **[UX] Smart Name Matching**
+  > Comprehensive name matching system that balances usability with game integrity: (1) Fuzzy matching with length-based thresholds - accept 1-2 character typos on longer names without revealing answers, using Levenshtein distance and/or phonetic algorithms (Soundex/Metaphone), (2) Require first + last name for most players to prevent "Adams" matching multiple players, (3) Mononym support - allow single-name guesses for players known by one name (Ronaldinho, Pelé, Neymar) via `is_mononym` flag populated from Wikidata, (4) Disambiguation UI when multiple players still match - show photos/nationality/club for quick selection. Key principle: reward knowing the player (typo tolerance) without giving away answers (no autocomplete suggestions).
+  > Added: 2026-01-25 | Combines: Improved Ambiguity Resolution, Autocomplete Hints
+  >
+  > **Implementation Progress (2026-01-25):**
+  > - [x] Created `fuzzy_matching.py` module with Levenshtein distance, Soundex, and Metaphone algorithms
+  > - [x] Created `PlayerMatcher` service class with clean interface for player lookups
+  > - [x] Implemented length-based thresholds (0 edits for ≤4 chars, 1 for 5-8, 2 for 9+)
+  > - [x] Added length ratio check to prevent "Ronaldo" matching "Ronaldinho" (must be within 20%)
+  > - [x] Implemented name validation (first + last name requirement)
+  > - [x] Added mononym detection heuristic (first_name IS NULL)
+  > - [x] Created 67 unit tests (42 fuzzy matching + 25 PlayerMatcher), all passing
+  > - [ ] Add `is_mononym` column to players table schema
+  > - [ ] Update Wikidata extractor to populate `is_mononym` flag
+  > - [ ] Integrate PlayerMatcher service into `/api/players/lookup` endpoint
+  > - [ ] Update frontend to handle `NEED_FULL_NAME` response
+  > - [ ] Build disambiguation UI component
+  >
+  > **Key Files:**
+  > - `backend/app/services/fuzzy_matching.py` - Core matching algorithms
+  > - `backend/app/services/player_matcher.py` - PlayerMatcher service class
+  > - `backend/tests/test_fuzzy_matching.py` - Algorithm tests
+  > - `backend/tests/test_player_matcher.py` - Service tests
 
 ---
 
@@ -66,10 +88,6 @@ Last updated: 2026-01-25
 - **[GAME] Hint System**
   > Implement hints to assist player recall: (1) Show team rosters with blanks for unguessed players, (2) Toggle difficulty by hiding/showing positions, (3) Toggle visibility of player birth years, (4) Progressive hint levels. This feature should be optional and track hint usage for competitive scoring.
   > Added: 2026-01-19
-
-- **[UX] Smart Name Matching**
-  > Comprehensive name matching system that balances usability with game integrity: (1) Fuzzy matching with length-based thresholds - accept 1-2 character typos on longer names without revealing answers, using Levenshtein distance and/or phonetic algorithms (Soundex/Metaphone), (2) Require first + last name for most players to prevent "Adams" matching multiple players, (3) Mononym support - allow single-name guesses for players known by one name (Ronaldinho, Pelé, Neymar) via `is_mononym` flag populated from Wikidata, (4) Disambiguation UI when multiple players still match - show photos/nationality/club for quick selection. Key principle: reward knowing the player (typo tolerance) without giving away answers (no autocomplete suggestions).
-  > Added: 2026-01-25 | Combines: Improved Ambiguity Resolution, Autocomplete Hints
 
 ### Medium Priority
 
@@ -135,10 +153,6 @@ Last updated: 2026-01-25
 
 - **[PERF] Frontend Caching Strategy**
   > Implement aggressive caching of player lookups to reduce API calls. Use IndexedDB for persistent cache, LRU cache in memory for current session. Add cache invalidation strategy when database is updated.
-  > Added: 2026-01-19
-
-- **[OTHER] Refactor Player Matching Logic**
-  > Refactor fuzzy matching logic from routers/players.py into a separate PlayerMatcher service class. Improves testability and allows reuse across different endpoints.
   > Added: 2026-01-19
 
 - **[UX] Player Photos & Media**
@@ -242,3 +256,7 @@ Last updated: 2026-01-25
 - **[INFRA] Run Script with Virtual Environment**
   > Created run.sh that auto-creates venv, installs dependencies, starts both servers.
   > Completed: 2026-01-19
+
+- **[OTHER] Refactor Player Matching Logic**
+  > Refactored matching logic into `PlayerMatcher` service class in `backend/app/services/player_matcher.py`. Created separate `fuzzy_matching.py` module with Levenshtein distance, Soundex, and Metaphone algorithms. Added 67 unit tests with full coverage. Improves testability and enables Smart Name Matching feature.
+  > Completed: 2026-01-25
