@@ -25,7 +25,11 @@ Last updated: 2026-01-25
 ### Game Features (GAME)
 | Item | Priority |
 |------|----------|
-| Hint System | HIGH |
+| Player Info Display Settings | HIGH |
+| Team Roster Lookup | HIGH |
+| Filter Guessed Players | HIGH |
+| Category Progress Indicators | MEDIUM |
+| Same Team Indicator | MEDIUM |
 | Expanded Leagues | MEDIUM |
 | Different Game Modes | LOW |
 | Gamification Features | MEDIUM |
@@ -85,11 +89,57 @@ Last updated: 2026-01-25
 
 ### High Priority
 
-- **[GAME] Hint System**
-  > Implement hints to assist player recall: (1) Show team rosters with blanks for unguessed players, (2) Toggle difficulty by hiding/showing positions, (3) Toggle visibility of player birth years, (4) Progressive hint levels. This feature should be optional and track hint usage for competitive scoring.
-  > Added: 2026-01-19
+- **[GAME] Player Info Display Settings**
+  > Configurable display preferences for player information shown after a successful guess. All settings toggleable via a Settings UI. Player name is always shown; other fields are optional:
+  > - Nationality (toggle)
+  > - Top 3 teams by appearances (toggle)
+  > - Full club history (toggle, requires Top 3 to be enabled)
+  > - Position (toggle)
+  > - Career span, e.g. "2005-2020" or "2018-present" (toggle)
+  >
+  > Settings should persist in localStorage. This replaces the concept of "hints" with user-controlled display preferences.
+  > Added: 2026-01-25 | Replaces: Hint System
+
+- **[GAME] Team Roster Lookup**
+  > Exploration tool to help users recall players by browsing team rosters. Features:
+  > - Search for any club or national team
+  > - Select a specific year/season (e.g., "2017/18" or "2025/26")
+  > - Display the roster for that team/season, highlighting players you've already guessed
+  > - Unguessed players shown as blanks or silhouettes (not revealed)
+  >
+  > This is an active discovery tool, separate from passive display settings. Should be toggleable on/off in Settings under "Exploration Tools."
+  > Added: 2026-01-25 | Replaces: Hint System (roster feature)
+
+- **[GAME] Filter Guessed Players**
+  > Add filtering controls to the guessed players list to help users organize and review their progress:
+  > - Filter by position (Goalkeeper, Defender, Midfielder, Forward)
+  > - Filter by nationality
+  >
+  > Builds on existing filter input but adds structured category filters. Helps users identify gaps in their knowledge (e.g., "I've only guessed 2 goalkeepers").
+  > Added: 2026-01-25
 
 ### Medium Priority
+
+- **[GAME] Category Progress Indicators**
+  > Show completion percentages by category to motivate collection and reveal knowledge gaps. Example: "German players: 47/312 (15%)", "Goalkeepers: 23/89 (26%)".
+  >
+  > **Needs refinement:** Determine the right categories to track. Candidates include:
+  > - By nationality (top 10-20 countries?)
+  > - By position (4 main positions)
+  > - By league (top 5 leagues + women's)
+  > - By decade (1990s, 2000s, 2010s, 2020s)
+  > - By club (major clubs only?)
+  >
+  > Should be toggleable - some users may find this motivating, others overwhelming.
+  > Added: 2026-01-25 | Status: Needs design refinement
+
+- **[GAME] Same Team Indicator**
+  > When a player is guessed, optionally show how many players from their notable teams have been guessed. Example: "You've now guessed 3/5 players from 2015 Barcelona" or "4 players from Germany national team."
+  >
+  > Creates mini collection goals and encourages users to complete team rosters. Should be toggleable in Settings.
+  >
+  > **Needs refinement:** Determine which teams to highlight (all clubs? just notable ones? national teams?), and how to calculate roster sizes.
+  > Added: 2026-01-25 | Status: Needs design refinement
 
 - **[META] Multiplayer Mode**
   > Allow multiple users to join the same session and guess in parallel. Implement real-time or near-real-time progress synchronization so players can see each other's guesses, player counts, and session leaderboards. Will require WebSocket support or polling mechanism for live updates.
