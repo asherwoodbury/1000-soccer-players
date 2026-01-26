@@ -9,8 +9,19 @@
 <body>
     <div class="container">
         <header>
-            <h1>1000 Soccer Players</h1>
-            <p class="subtitle">How many can you name?</p>
+            <div class="header-row">
+                <div class="header-spacer"></div>
+                <div class="header-title">
+                    <h1>1000 Soccer Players</h1>
+                    <p class="subtitle">How many can you name?</p>
+                </div>
+                <button id="settings-btn" class="settings-btn" aria-label="Open settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
+                    </svg>
+                </button>
+            </div>
         </header>
 
         <div class="stats-bar">
@@ -55,11 +66,57 @@
                 <button class="modal-close" aria-label="Close modal">&times;</button>
                 <h2 id="modal-player-name"></h2>
                 <div class="modal-info">
-                    <p><strong>Nationality:</strong> <span id="modal-nationality"></span></p>
-                    <p><strong>Position:</strong> <span id="modal-position"></span></p>
+                    <p id="modal-nationality-row"><strong>Nationality:</strong> <span id="modal-nationality"></span></p>
+                    <p id="modal-position-row"><strong>Position:</strong> <span id="modal-position"></span></p>
+                    <p id="modal-career-span-row"><strong>Career:</strong> <span id="modal-career-span"></span></p>
                 </div>
-                <h3>Club History</h3>
-                <ul id="modal-clubs" class="club-history"></ul>
+                <div id="modal-top-clubs-section">
+                    <h3>Top Clubs</h3>
+                    <p id="modal-top-clubs" class="top-clubs-list"></p>
+                </div>
+                <div id="modal-clubs-section">
+                    <h3>Full Club History</h3>
+                    <ul id="modal-clubs" class="club-history"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div class="modal-content settings-modal-content">
+                <button class="modal-close" id="settings-close" aria-label="Close settings">&times;</button>
+                <h2 id="settings-title">Display Settings</h2>
+                <p class="settings-description">Choose what information to show for each player.</p>
+
+                <div class="settings-group">
+                    <h3>Player Info</h3>
+                    <label class="setting-item">
+                        <input type="checkbox" id="setting-nationality" checked>
+                        <span class="setting-label">Nationality</span>
+                    </label>
+                    <label class="setting-item">
+                        <input type="checkbox" id="setting-position" checked>
+                        <span class="setting-label">Position</span>
+                    </label>
+                    <label class="setting-item">
+                        <input type="checkbox" id="setting-career-span" checked>
+                        <span class="setting-label">Career Span</span>
+                        <span class="setting-hint">e.g., "2005-2020"</span>
+                    </label>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Club History</h3>
+                    <label class="setting-item">
+                        <input type="checkbox" id="setting-top-clubs" checked>
+                        <span class="setting-label">Top 3 Clubs</span>
+                        <span class="setting-hint">By years at club</span>
+                    </label>
+                    <label class="setting-item">
+                        <input type="checkbox" id="setting-full-history" checked>
+                        <span class="setting-label">Full Club History</span>
+                        <span class="setting-hint">Requires Top 3 Clubs</span>
+                    </label>
+                </div>
             </div>
         </div>
     </div>

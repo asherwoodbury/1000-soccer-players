@@ -4,9 +4,36 @@
 
 const API_BASE = 'http://localhost:8000/api';
 
+// Default display settings
+const DEFAULT_SETTINGS = {
+    showNationality: true,
+    showPosition: true,
+    showCareerSpan: true,
+    showTopClubs: true,
+    showFullHistory: true
+};
+
 // State
 let sessionId = null;
 let guessedPlayers = [];
+let displaySettings = { ...DEFAULT_SETTINGS };
+
+// Load settings from localStorage
+function loadSettings() {
+    const stored = localStorage.getItem('displaySettings');
+    if (stored) {
+        try {
+            displaySettings = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+        } catch (e) {
+            displaySettings = { ...DEFAULT_SETTINGS };
+        }
+    }
+}
+
+// Save settings to localStorage
+function saveSettings() {
+    localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+}
 
 // DOM Elements
 const playerInput = document.getElementById('player-input');
@@ -17,13 +44,49 @@ const playersList = document.getElementById('players-list');
 const filterInput = document.getElementById('filter-input');
 const filteredCountEl = document.getElementById('filtered-count');
 const modal = document.getElementById('player-modal');
-const modalClose = document.querySelector('.modal-close');
+const modalClose = modal.querySelector('.modal-close');
+
+// Settings DOM Elements
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsClose = document.getElementById('settings-close');
+const settingCheckboxes = {
+    nationality: document.getElementById('setting-nationality'),
+    position: document.getElementById('setting-position'),
+    careerSpan: document.getElementById('setting-career-span'),
+    topClubs: document.getElementById('setting-top-clubs'),
+    fullHistory: document.getElementById('setting-full-history')
+};
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    loadSettings();
+    applySettingsToUI();
     await initSession();
     setupEventListeners();
 });
+
+// Apply current settings to the settings UI checkboxes
+function applySettingsToUI() {
+    settingCheckboxes.nationality.checked = displaySettings.showNationality;
+    settingCheckboxes.position.checked = displaySettings.showPosition;
+    settingCheckboxes.careerSpan.checked = displaySettings.showCareerSpan;
+    settingCheckboxes.topClubs.checked = displaySettings.showTopClubs;
+    settingCheckboxes.fullHistory.checked = displaySettings.showFullHistory;
+    updateFullHistoryState();
+}
+
+// Update the full history checkbox state based on top clubs
+function updateFullHistoryState() {
+    const fullHistoryItem = settingCheckboxes.fullHistory.closest('.setting-item');
+    if (!displaySettings.showTopClubs) {
+        fullHistoryItem.classList.add('disabled');
+        settingCheckboxes.fullHistory.disabled = true;
+    } else {
+        fullHistoryItem.classList.remove('disabled');
+        settingCheckboxes.fullHistory.disabled = false;
+    }
+}
 
 async function initSession() {
     // Check for existing session in localStorage
@@ -66,9 +129,63 @@ function setupEventListeners() {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
     });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+
+    // Settings modal
+    settingsBtn.addEventListener('click', openSettings);
+    settingsClose.addEventListener('click', closeSettings);
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) closeSettings();
     });
+
+    // Settings checkboxes
+    settingCheckboxes.nationality.addEventListener('change', (e) => {
+        displaySettings.showNationality = e.target.checked;
+        saveSettings();
+        renderPlayersList();
+    });
+    settingCheckboxes.position.addEventListener('change', (e) => {
+        displaySettings.showPosition = e.target.checked;
+        saveSettings();
+        renderPlayersList();
+    });
+    settingCheckboxes.careerSpan.addEventListener('change', (e) => {
+        displaySettings.showCareerSpan = e.target.checked;
+        saveSettings();
+        renderPlayersList();
+    });
+    settingCheckboxes.topClubs.addEventListener('change', (e) => {
+        displaySettings.showTopClubs = e.target.checked;
+        // If top clubs is disabled, also disable full history
+        if (!e.target.checked) {
+            displaySettings.showFullHistory = false;
+            settingCheckboxes.fullHistory.checked = false;
+        }
+        updateFullHistoryState();
+        saveSettings();
+        renderPlayersList();
+    });
+    settingCheckboxes.fullHistory.addEventListener('change', (e) => {
+        displaySettings.showFullHistory = e.target.checked;
+        saveSettings();
+    });
+
+    // Close modals on Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeSettings();
+        }
+    });
+}
+
+function openSettings() {
+    settingsModal.classList.remove('hidden');
+    settingsClose.focus();
+}
+
+function closeSettings() {
+    settingsModal.classList.add('hidden');
+    settingsBtn.focus();
 }
 
 async function handleGuess(e) {
@@ -123,6 +240,7 @@ async function handleGuess(e) {
                 position: lookupData.player.position,
                 top_clubs: lookupData.player.top_clubs,
                 clubs: lookupData.player.clubs,
+                career_span: lookupData.player.career_span,
                 guessed_at: new Date().toISOString(),
                 isNew: true
             });
@@ -197,15 +315,30 @@ function renderPlayersList(highlightNew = false) {
 
     playersList.innerHTML = filteredPlayers.map((player, index) => {
         const isNew = highlightNew && index === 0 && player.isNew;
+
+        // Build info line based on settings
+        const infoParts = [];
+        if (displaySettings.showNationality && player.nationality) {
+            infoParts.push(escapeHtml(player.nationality));
+        }
+        if (displaySettings.showPosition && player.position) {
+            infoParts.push(escapeHtml(player.position));
+        }
+        if (displaySettings.showCareerSpan && player.career_span) {
+            infoParts.push(escapeHtml(player.career_span));
+        }
+        const infoLine = infoParts.join(' · ') || '';
+
+        // Build clubs line based on settings
+        const clubsLine = displaySettings.showTopClubs && player.top_clubs?.length
+            ? player.top_clubs.map(c => escapeHtml(c)).join(', ')
+            : '';
+
         return `
         <div class="player-card${isNew ? ' new' : ''}" data-player-id="${player.id}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(player.name)}">
             <div class="player-name">${escapeHtml(player.name)}</div>
-            <div class="player-info">
-                ${escapeHtml(player.nationality || 'Unknown')} · ${escapeHtml(player.position || 'Unknown')}
-            </div>
-            <div class="player-clubs">
-                ${player.top_clubs?.map(c => escapeHtml(c)).join(', ') || 'No clubs'}
-            </div>
+            ${infoLine ? `<div class="player-info">${infoLine}</div>` : ''}
+            ${clubsLine ? `<div class="player-clubs">${clubsLine}</div>` : ''}
         </div>
     `}).join('');
 
@@ -239,12 +372,48 @@ function showPlayerModal(player) {
     lastFocusedElement = document.activeElement;
 
     document.getElementById('modal-player-name').textContent = player.name;
-    document.getElementById('modal-nationality').textContent = player.nationality || 'Unknown';
-    document.getElementById('modal-position').textContent = player.position || 'Unknown';
 
+    // Nationality
+    const nationalityRow = document.getElementById('modal-nationality-row');
+    if (displaySettings.showNationality) {
+        document.getElementById('modal-nationality').textContent = player.nationality || 'Unknown';
+        nationalityRow.style.display = '';
+    } else {
+        nationalityRow.style.display = 'none';
+    }
+
+    // Position
+    const positionRow = document.getElementById('modal-position-row');
+    if (displaySettings.showPosition) {
+        document.getElementById('modal-position').textContent = player.position || 'Unknown';
+        positionRow.style.display = '';
+    } else {
+        positionRow.style.display = 'none';
+    }
+
+    // Career span
+    const careerSpanRow = document.getElementById('modal-career-span-row');
+    if (displaySettings.showCareerSpan && player.career_span) {
+        document.getElementById('modal-career-span').textContent = player.career_span;
+        careerSpanRow.style.display = '';
+    } else {
+        careerSpanRow.style.display = 'none';
+    }
+
+    // Top clubs
+    const topClubsSection = document.getElementById('modal-top-clubs-section');
+    if (displaySettings.showTopClubs && player.top_clubs?.length) {
+        document.getElementById('modal-top-clubs').textContent = player.top_clubs.join(', ');
+        topClubsSection.style.display = '';
+    } else {
+        topClubsSection.style.display = 'none';
+    }
+
+    // Full club history
+    const clubsSection = document.getElementById('modal-clubs-section');
     const clubsList = document.getElementById('modal-clubs');
 
-    if (player.clubs && player.clubs.length > 0) {
+    if (displaySettings.showTopClubs && displaySettings.showFullHistory && player.clubs?.length) {
         clubsList.innerHTML = player.clubs.map(club => {
             const startYear = club.start_date ? club.start_date.substring(0, 4) : '?';
             const endYear = club.end_date ? club.end_date.substring(0, 4) : 'Present';
@@ -257,8 +426,9 @@ function showPlayerModal(player) {
                 </li>
             `;
         }).join('');
+        clubsSection.style.display = '';
     } else {
-        clubsList.innerHTML = '<li>No club history available</li>';
+        clubsSection.style.display = 'none';
     }
 
     modal.classList.remove('hidden');

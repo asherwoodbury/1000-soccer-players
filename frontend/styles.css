@@ -31,8 +31,22 @@ body {
 }
 
 header {
-    text-align: center;
     margin-bottom: 1.5rem;
+}
+
+.header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.header-spacer {
+    width: 40px;
+}
+
+.header-title {
+    text-align: center;
+    flex: 1;
 }
 
 header h1 {
@@ -44,6 +58,26 @@ header h1 {
 .subtitle {
     color: var(--text-muted);
     font-size: 1rem;
+}
+
+.settings-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: var(--text-muted);
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.settings-btn:hover {
+    color: var(--text);
+    background: var(--border);
+}
+
+.settings-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .stats-bar {
@@ -426,6 +460,76 @@ header h1 {
     text-align: center;
     padding: 2rem;
     color: var(--text-muted);
+}
+
+/* Settings modal */
+.settings-modal-content {
+    max-width: 400px;
+}
+
+.settings-description {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-group {
+    margin-bottom: 1.5rem;
+}
+
+.settings-group h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 0.75rem;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.setting-label {
+    flex: 1;
+    font-size: 0.95rem;
+}
+
+.setting-hint {
+    width: 100%;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-left: calc(18px + 0.75rem);
+    margin-top: 0.25rem;
+}
+
+.setting-item.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Top clubs in modal */
+.top-clubs-list {
+    font-size: 0.95rem;
+    color: var(--text);
+    line-height: 1.6;
 }
 
 /* Responsive */

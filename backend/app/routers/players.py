@@ -7,8 +7,82 @@ from pydantic import BaseModel
 from typing import Optional
 import unicodedata
 import re
+from datetime import datetime
 
 from app.models.database import get_db_connection
+
+
+def calculate_club_duration_years(start_date: Optional[str], end_date: Optional[str]) -> float:
+    """
+    Calculate the duration in years a player was at a club.
+    If end_date is None, assumes the player is still at the club (uses current date).
+    If start_date is None, returns 0.
+    """
+    if not start_date:
+        return 0.0
+
+    try:
+        start = datetime.strptime(start_date[:10], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        # Try year-only format
+        try:
+            start = datetime.strptime(start_date[:4], "%Y")
+        except (ValueError, TypeError):
+            return 0.0
+
+    if end_date:
+        try:
+            end = datetime.strptime(end_date[:10], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            try:
+                end = datetime.strptime(end_date[:4], "%Y")
+            except (ValueError, TypeError):
+                end = datetime.now()
+    else:
+        end = datetime.now()
+
+    duration_days = (end - start).days
+    return max(0.0, duration_days / 365.25)
+
+
+def calculate_career_span(clubs: list) -> Optional[str]:
+    """
+    Calculate career span from club history.
+    Returns a string like "2005-2020" or "2018-present".
+    """
+    if not clubs:
+        return None
+
+    start_years = []
+    end_years = []
+
+    for club in clubs:
+        if club.start_date:
+            try:
+                start_years.append(int(club.start_date[:4]))
+            except (ValueError, TypeError):
+                pass
+        if club.end_date:
+            try:
+                end_years.append(int(club.end_date[:4]))
+            except (ValueError, TypeError):
+                pass
+
+    if not start_years:
+        return None
+
+    earliest = min(start_years)
+
+    # Check if any club has no end date (still active)
+    has_active_club = any(c.end_date is None for c in clubs)
+
+    if has_active_club:
+        return f"{earliest}-present"
+    elif end_years:
+        latest = max(end_years)
+        return f"{earliest}-{latest}"
+    else:
+        return f"{earliest}-present"
 
 router = APIRouter()
 
@@ -35,7 +109,8 @@ class PlayerResponse(BaseModel):
     nationality: Optional[str]
     position: Optional[str]
     clubs: list[ClubHistory]
-    top_clubs: list[str]  # Top 3 clubs by time spent
+    top_clubs: list[str]  # Top 3 clubs by duration (years)
+    career_span: Optional[str]  # e.g., "2005-2020" or "2018-present"
 
 
 class PlayerLookupResult(BaseModel):
@@ -131,9 +206,28 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
         for row in club_rows
     ]
 
-    # Calculate top clubs (non-national teams, by duration or just first 3)
+    # Calculate top clubs by duration (non-national teams only)
     non_national_clubs = [c for c in clubs if not c.is_national_team]
-    top_clubs = [c.name for c in non_national_clubs[:3]]
+
+    # Calculate duration for each club and sort by duration
+    club_durations = []
+    for club in non_national_clubs:
+        duration = calculate_club_duration_years(club.start_date, club.end_date)
+        club_durations.append((club.name, duration))
+
+    # Sort by duration descending, take top 3 unique club names
+    club_durations.sort(key=lambda x: x[1], reverse=True)
+    seen_clubs = set()
+    top_clubs = []
+    for club_name, _ in club_durations:
+        if club_name not in seen_clubs:
+            seen_clubs.add(club_name)
+            top_clubs.append(club_name)
+            if len(top_clubs) >= 3:
+                break
+
+    # Calculate career span
+    career_span = calculate_career_span(clubs)
 
     return PlayerLookupResult(
         found=True,
@@ -143,7 +237,8 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
             nationality=player['nationality'],
             position=player['position'],
             clubs=clubs,
-            top_clubs=top_clubs
+            top_clubs=top_clubs,
+            career_span=career_span
         ),
         message="Player found!"
     )
