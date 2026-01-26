@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-01-19
+Last updated: 2026-01-25
 
 ## Category Index
 
@@ -14,8 +14,7 @@ Last updated: 2026-01-19
 ### UX Improvements (UX)
 | Item | Priority |
 |------|----------|
-| Autocomplete Hints | HIGH |
-| Improved Ambiguity Resolution | HIGH |
+| Smart Name Matching | HIGH |
 | Progress Visualization | MEDIUM |
 | Player Statistics Dashboard | LOW |
 | Player Photos & Media | MEDIUM |
@@ -68,13 +67,9 @@ Last updated: 2026-01-19
   > Implement hints to assist player recall: (1) Show team rosters with blanks for unguessed players, (2) Toggle difficulty by hiding/showing positions, (3) Toggle visibility of player birth years, (4) Progressive hint levels. This feature should be optional and track hint usage for competitive scoring.
   > Added: 2026-01-19
 
-- **[UX] Improved Ambiguity Resolution**
-  > Enhance UX when multiple players match a name: (1) Show thumbnail photos of matching players, (2) Display nationality/club/position inline to help disambiguation, (3) Quick select from list rather than typing again.
-  > Added: 2026-01-19
-
-- **[UX] Autocomplete Hints for Player Names**
-  > Add "Did you mean..." suggestions after failed lookups to help with spelling of international names. Could show phonetically similar matches without revealing the full player list. Reduces frustration from typos.
-  > Added: 2026-01-19 | Source: UX Review
+- **[UX] Smart Name Matching**
+  > Comprehensive name matching system that balances usability with game integrity: (1) Fuzzy matching with length-based thresholds - accept 1-2 character typos on longer names without revealing answers, using Levenshtein distance and/or phonetic algorithms (Soundex/Metaphone), (2) Require first + last name for most players to prevent "Adams" matching multiple players, (3) Mononym support - allow single-name guesses for players known by one name (Ronaldinho, Pelé, Neymar) via `is_mononym` flag populated from Wikidata, (4) Disambiguation UI when multiple players still match - show photos/nationality/club for quick selection. Key principle: reward knowing the player (typo tolerance) without giving away answers (no autocomplete suggestions).
+  > Added: 2026-01-25 | Combines: Improved Ambiguity Resolution, Autocomplete Hints
 
 ### Medium Priority
 
