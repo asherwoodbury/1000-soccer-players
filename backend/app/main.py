@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import players, sessions
+from app.routers import players, sessions, clubs
 from app.models.database import init_database
 
 
@@ -48,3 +48,4 @@ async def health():
 # Include routers
 app.include_router(players.router, prefix="/api/players", tags=["players"])
 app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
+app.include_router(clubs.router, prefix="/api/clubs", tags=["clubs"])

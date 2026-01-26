@@ -532,6 +532,234 @@ header h1 {
     line-height: 1.6;
 }
 
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tab {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-muted);
+}
+
+.tab:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+.tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.tab.hidden {
+    display: none;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Roster lookup */
+.roster-search {
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.roster-search-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#club-search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+}
+
+#club-search-input:focus {
+    border-color: var(--primary);
+}
+
+.club-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 50;
+    margin-top: 0.25rem;
+}
+
+.club-search-results.hidden {
+    display: none;
+}
+
+.club-result {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+.club-result:last-child {
+    border-bottom: none;
+}
+
+.club-result:hover {
+    background: var(--bg);
+}
+
+.club-result-name {
+    font-weight: 500;
+}
+
+.club-result-badge {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+}
+
+/* Roster display */
+.roster-display {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.roster-display.hidden {
+    display: none;
+}
+
+.roster-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.roster-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.season-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.season-btn {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.15s;
+}
+
+.season-btn:hover:not(:disabled) {
+    background: var(--border);
+}
+
+.season-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#roster-season {
+    font-weight: 600;
+    min-width: 80px;
+    text-align: center;
+}
+
+.roster-stats {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.roster-players {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.roster-player {
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    text-align: center;
+    transition: all 0.15s;
+}
+
+.roster-player.guessed {
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+    color: var(--success);
+    font-weight: 500;
+}
+
+.roster-player.unguessed {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+
+.roster-player.unguessed .player-name-hidden {
+    font-style: italic;
+}
+
+.roster-player-position {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
+}
+
+/* Roster empty state */
+.roster-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--text-muted);
+}
+
+.roster-empty p {
+    margin-bottom: 0.5rem;
+}
+
+.roster-hint {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
     .stat-value {
@@ -544,5 +772,19 @@ header h1 {
 
     #guess-form button {
         width: 100%;
+    }
+
+    .roster-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .roster-players {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .roster-player {
+        padding: 0.5rem;
+        font-size: 0.8rem;
     }
 }

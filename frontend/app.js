@@ -10,7 +10,8 @@ const DEFAULT_SETTINGS = {
     showPosition: true,
     showCareerSpan: true,
     showTopClubs: true,
-    showFullHistory: true
+    showFullHistory: true,
+    showRosterLookup: true
 };
 
 // State
@@ -55,8 +56,34 @@ const settingCheckboxes = {
     position: document.getElementById('setting-position'),
     careerSpan: document.getElementById('setting-career-span'),
     topClubs: document.getElementById('setting-top-clubs'),
-    fullHistory: document.getElementById('setting-full-history')
+    fullHistory: document.getElementById('setting-full-history'),
+    rosterLookup: document.getElementById('setting-roster-lookup')
 };
+
+// Tabs
+const tabs = document.querySelectorAll('.tab');
+const guessedTab = document.getElementById('guessed-tab');
+const rosterTab = document.getElementById('roster-tab');
+const rosterTabBtn = document.querySelector('.tab[data-tab="roster"]');
+
+// Roster lookup DOM Elements
+const clubSearchInput = document.getElementById('club-search-input');
+const clubSearchResults = document.getElementById('club-search-results');
+const rosterDisplay = document.getElementById('roster-display');
+const rosterEmpty = document.getElementById('roster-empty');
+const rosterClubName = document.getElementById('roster-club-name');
+const rosterSeason = document.getElementById('roster-season');
+const rosterGuessedCount = document.getElementById('roster-guessed-count');
+const rosterTotalCount = document.getElementById('roster-total-count');
+const rosterPlayers = document.getElementById('roster-players');
+const seasonPrevBtn = document.getElementById('season-prev');
+const seasonNextBtn = document.getElementById('season-next');
+
+// Roster state
+let currentClub = null;
+let currentSeason = new Date().getFullYear();
+let clubYearRange = { min: 2000, max: 2025 };
+let clubSearchTimeout = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -73,7 +100,22 @@ function applySettingsToUI() {
     settingCheckboxes.careerSpan.checked = displaySettings.showCareerSpan;
     settingCheckboxes.topClubs.checked = displaySettings.showTopClubs;
     settingCheckboxes.fullHistory.checked = displaySettings.showFullHistory;
+    settingCheckboxes.rosterLookup.checked = displaySettings.showRosterLookup;
     updateFullHistoryState();
+    updateRosterTabVisibility();
+}
+
+// Update roster tab visibility based on settings
+function updateRosterTabVisibility() {
+    if (displaySettings.showRosterLookup) {
+        rosterTabBtn.classList.remove('hidden');
+    } else {
+        rosterTabBtn.classList.add('hidden');
+        // If roster tab is active and we're hiding it, switch to guessed tab
+        if (rosterTab.classList.contains('active')) {
+            switchTab('guessed');
+        }
+    }
 }
 
 // Update the full history checkbox state based on top clubs
@@ -168,6 +210,37 @@ function setupEventListeners() {
         displaySettings.showFullHistory = e.target.checked;
         saveSettings();
     });
+    settingCheckboxes.rosterLookup.addEventListener('change', (e) => {
+        displaySettings.showRosterLookup = e.target.checked;
+        updateRosterTabVisibility();
+        saveSettings();
+    });
+
+    // Tabs
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            switchTab(tab.dataset.tab);
+        });
+    });
+
+    // Club search
+    clubSearchInput.addEventListener('input', handleClubSearch);
+    clubSearchInput.addEventListener('focus', () => {
+        if (clubSearchInput.value.length >= 2) {
+            clubSearchResults.classList.remove('hidden');
+        }
+    });
+
+    // Close search results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.roster-search')) {
+            clubSearchResults.classList.add('hidden');
+        }
+    });
+
+    // Season navigation
+    seasonPrevBtn.addEventListener('click', () => changeSeason(-1));
+    seasonNextBtn.addEventListener('click', () => changeSeason(1));
 
     // Close modals on Escape
     document.addEventListener('keydown', (e) => {
@@ -462,4 +535,175 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Tab switching
+function switchTab(tabName) {
+    tabs.forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+        tab.setAttribute('aria-selected', tab.dataset.tab === tabName);
+    });
+
+    guessedTab.classList.toggle('active', tabName === 'guessed');
+    rosterTab.classList.toggle('active', tabName === 'roster');
+
+    // Focus the input for the active tab
+    if (tabName === 'guessed') {
+        filterInput.focus();
+    } else if (tabName === 'roster') {
+        clubSearchInput.focus();
+    }
+}
+
+// Club search with debouncing
+function handleClubSearch() {
+    const query = clubSearchInput.value.trim();
+
+    // Clear previous timeout
+    if (clubSearchTimeout) {
+        clearTimeout(clubSearchTimeout);
+    }
+
+    if (query.length < 2) {
+        clubSearchResults.classList.add('hidden');
+        clubSearchResults.innerHTML = '';
+        return;
+    }
+
+    // Debounce the search
+    clubSearchTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE}/clubs/search?query=${encodeURIComponent(query)}&limit=10`
+            );
+            const clubs = await response.json();
+
+            if (clubs.length === 0) {
+                clubSearchResults.innerHTML = `
+                    <div class="club-result" style="color: var(--text-muted); cursor: default;">
+                        No clubs found
+                    </div>
+                `;
+            } else {
+                clubSearchResults.innerHTML = clubs.map(club => `
+                    <div class="club-result" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}">
+                        <span class="club-result-name">${escapeHtml(club.name)}</span>
+                        ${club.is_national_team ? '<span class="club-result-badge">National Team</span>' : ''}
+                    </div>
+                `).join('');
+
+                // Add click handlers
+                clubSearchResults.querySelectorAll('.club-result[data-club-id]').forEach(result => {
+                    result.addEventListener('click', () => {
+                        selectClub(
+                            parseInt(result.dataset.clubId),
+                            result.dataset.clubName
+                        );
+                    });
+                });
+            }
+
+            clubSearchResults.classList.remove('hidden');
+        } catch (e) {
+            console.error('Club search error:', e);
+        }
+    }, 300);
+}
+
+// Select a club and load its roster
+async function selectClub(clubId, clubName) {
+    currentClub = { id: clubId, name: clubName };
+    clubSearchInput.value = clubName;
+    clubSearchResults.classList.add('hidden');
+
+    // Get year range for this club
+    try {
+        const response = await fetch(`${API_BASE}/clubs/${clubId}/years`);
+        const data = await response.json();
+        clubYearRange = { min: data.min_year, max: data.max_year };
+
+        // Start with the most recent season
+        currentSeason = Math.min(clubYearRange.max, new Date().getFullYear());
+
+        await loadRoster();
+    } catch (e) {
+        console.error('Error getting club years:', e);
+        clubYearRange = { min: 2000, max: new Date().getFullYear() };
+        currentSeason = new Date().getFullYear();
+        await loadRoster();
+    }
+}
+
+// Load roster for current club and season
+async function loadRoster() {
+    if (!currentClub) return;
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/clubs/${currentClub.id}/roster?season=${currentSeason}`
+        );
+        const data = await response.json();
+
+        // Update UI
+        rosterClubName.textContent = data.club_name;
+        rosterSeason.textContent = data.season;
+        rosterTotalCount.textContent = data.total_count;
+
+        // Get set of guessed player IDs for fast lookup
+        const guessedIds = new Set(guessedPlayers.map(p => p.id));
+
+        // Count guessed players in this roster
+        const guessedInRoster = data.players.filter(p => guessedIds.has(p.id)).length;
+        rosterGuessedCount.textContent = guessedInRoster;
+
+        // Render roster
+        if (data.players.length === 0) {
+            rosterPlayers.innerHTML = `
+                <div class="roster-empty-inline">
+                    No player data available for this season.
+                </div>
+            `;
+        } else {
+            // Sort: guessed first, then alphabetically
+            const sortedPlayers = [...data.players].sort((a, b) => {
+                const aGuessed = guessedIds.has(a.id);
+                const bGuessed = guessedIds.has(b.id);
+                if (aGuessed && !bGuessed) return -1;
+                if (!aGuessed && bGuessed) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            rosterPlayers.innerHTML = sortedPlayers.map(player => {
+                const isGuessed = guessedIds.has(player.id);
+                return `
+                    <div class="roster-player ${isGuessed ? 'guessed' : 'unguessed'}">
+                        <div class="${isGuessed ? '' : 'player-name-hidden'}">
+                            ${isGuessed ? escapeHtml(player.name) : '?????'}
+                        </div>
+                        ${player.position ? `<div class="roster-player-position">${escapeHtml(player.position)}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update season buttons
+        seasonPrevBtn.disabled = currentSeason <= clubYearRange.min;
+        seasonNextBtn.disabled = currentSeason >= clubYearRange.max;
+
+        // Show roster display
+        rosterDisplay.classList.remove('hidden');
+        rosterEmpty.style.display = 'none';
+
+    } catch (e) {
+        console.error('Error loading roster:', e);
+    }
+}
+
+// Change season
+function changeSeason(delta) {
+    const newSeason = currentSeason + delta;
+    if (newSeason >= clubYearRange.min && newSeason <= clubYearRange.max) {
+        currentSeason = newSeason;
+        loadRoster();
+    }
 }

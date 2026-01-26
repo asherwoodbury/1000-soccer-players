@@ -47,18 +47,60 @@
             <div id="message" class="message"></div>
         </div>
 
-        <div class="filters">
-            <input
-                type="text"
-                id="filter-input"
-                placeholder="Filter by club or country..."
-                aria-label="Filter guessed players by club or country"
-            >
+        <div class="tabs">
+            <button class="tab active" data-tab="guessed" aria-selected="true">Guessed Players</button>
+            <button class="tab" data-tab="roster" aria-selected="false">Team Roster</button>
         </div>
 
-        <div class="players-section">
-            <h2>Guessed Players <span id="filtered-count"></span></h2>
-            <div id="players-list" class="players-list"></div>
+        <div id="guessed-tab" class="tab-content active">
+            <div class="filters">
+                <input
+                    type="text"
+                    id="filter-input"
+                    placeholder="Filter by club or country..."
+                    aria-label="Filter guessed players by club or country"
+                >
+            </div>
+
+            <div class="players-section">
+                <h2>Guessed Players <span id="filtered-count"></span></h2>
+                <div id="players-list" class="players-list"></div>
+            </div>
+        </div>
+
+        <div id="roster-tab" class="tab-content">
+            <div class="roster-search">
+                <div class="roster-search-row">
+                    <input
+                        type="text"
+                        id="club-search-input"
+                        placeholder="Search for a club or national team..."
+                        aria-label="Search for a club or national team"
+                        autocomplete="off"
+                    >
+                </div>
+                <div id="club-search-results" class="club-search-results hidden"></div>
+            </div>
+
+            <div id="roster-display" class="roster-display hidden">
+                <div class="roster-header">
+                    <h2 id="roster-club-name"></h2>
+                    <div class="season-selector">
+                        <button id="season-prev" class="season-btn" aria-label="Previous season">&larr;</button>
+                        <span id="roster-season"></span>
+                        <button id="season-next" class="season-btn" aria-label="Next season">&rarr;</button>
+                    </div>
+                </div>
+                <div class="roster-stats">
+                    <span id="roster-guessed-count">0</span> / <span id="roster-total-count">0</span> players guessed
+                </div>
+                <div id="roster-players" class="roster-players"></div>
+            </div>
+
+            <div id="roster-empty" class="roster-empty">
+                <p>Search for a club or national team to see their roster.</p>
+                <p class="roster-hint">Players you've guessed will be highlighted. Unguessed players appear as blanks.</p>
+            </div>
         </div>
 
         <div id="player-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-player-name">
@@ -115,6 +157,15 @@
                         <input type="checkbox" id="setting-full-history" checked>
                         <span class="setting-label">Full Club History</span>
                         <span class="setting-hint">Requires Top 3 Clubs</span>
+                    </label>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Exploration Tools</h3>
+                    <label class="setting-item">
+                        <input type="checkbox" id="setting-roster-lookup" checked>
+                        <span class="setting-label">Team Roster Lookup</span>
+                        <span class="setting-hint">Browse team rosters by season</span>
                     </label>
                 </div>
             </div>
