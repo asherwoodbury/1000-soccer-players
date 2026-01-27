@@ -9,7 +9,7 @@ import unicodedata
 import re
 from datetime import datetime
 
-from app.models.database import get_db_connection
+from app.models.database import get_db_connection, fts_search, fts_search_fuzzy
 
 
 def calculate_club_duration_years(start_date: Optional[str], end_date: Optional[str]) -> float:
@@ -160,6 +160,22 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
         rows = cursor.fetchall()
 
     if len(rows) == 0:
+        # Try FTS5 full-text search with prefix matching
+        fts_results = fts_search(name, limit=10)
+        if fts_results:
+            rows = fts_results
+
+    # Track if we used fuzzy search (for different ambiguity handling)
+    used_fuzzy_search = False
+
+    if len(rows) == 0:
+        # Try FTS5 fuzzy search (handles typos like "Christiano" -> "Cristiano")
+        fuzzy_results = fts_search_fuzzy(name, limit=10)
+        if fuzzy_results:
+            rows = fuzzy_results
+            used_fuzzy_search = True
+
+    if len(rows) == 0:
         conn.close()
         return PlayerLookupResult(
             found=False,
@@ -172,13 +188,19 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
         unique_players = {(row['name'], row['nationality']) for row in rows}
 
         if len(unique_players) > 1:
-            conn.close()
-            return AmbiguousPlayerResult(
-                found=False,
-                ambiguous=True,
-                count=len(unique_players),
-                message=f"Found {len(unique_players)} players with similar names. Please be more specific (try including nationality or full name)."
-            )
+            # For fuzzy search, prefer the top result (best match) rather than
+            # returning ambiguous. The fuzzy search already ranks by relevance.
+            if used_fuzzy_search:
+                # Just use the top result
+                rows = [rows[0]]
+            else:
+                conn.close()
+                return AmbiguousPlayerResult(
+                    found=False,
+                    ambiguous=True,
+                    count=len(unique_players),
+                    message=f"Found {len(unique_players)} players with similar names. Please be more specific (try including nationality or full name)."
+                )
 
     # Found exactly one player (or multiple entries for same player)
     player = rows[0]
