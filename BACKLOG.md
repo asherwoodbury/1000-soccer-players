@@ -1,36 +1,38 @@
 # Project Backlog
 
-Last updated: 2026-01-27 15:30
+Last updated: 2026-01-27 16:00
 
 ## Category Index
 
 ### Performance (PERF)
 | Item | Priority |
 |------|----------|
-| Full-Text Search (FTS5) | MEDIUM |
-| Database Query Optimization | MEDIUM |
-| Frontend Caching Strategy | MEDIUM |
+| Full-Text Search (FTS5) | HIGH |
+| Database Query Optimization | HIGH |
+| Frontend Caching Strategy | HIGH |
 
 ### UX Improvements (UX)
 | Item | Priority |
 |------|----------|
 | Smart Name Matching | IN PROGRESS |
+| Recently Viewed Clubs Quick Access | HIGH |
+| Dark Mode | HIGH |
 | Progress Visualization | MEDIUM |
 | Player Statistics Dashboard | LOW |
 | Player Photos & Media | MEDIUM |
 | Enhanced Empty State | MEDIUM |
 | Mobile Touch Improvements | MEDIUM |
-| Dark Mode | MEDIUM |
+| Filter Roster by Guessed/Unguessed | LOW |
 
 ### Game Features (GAME)
 | Item | Priority |
 |------|----------|
-| Player Info Display Settings | HIGH |
-| Team Roster Lookup | HIGH |
-| Filter Guessed Players | HIGH |
+| Player Info Display Settings | COMPLETED |
+| Team Roster Lookup | COMPLETED |
+| Filter Guessed Players | COMPLETED |
+| Expanded Leagues | HIGH |
 | Category Progress Indicators | MEDIUM |
 | Same Team Indicator | MEDIUM |
-| Expanded Leagues | MEDIUM |
 | Different Game Modes | LOW |
 | Gamification Features | MEDIUM |
 | Additional Sports | MEDIUM |
@@ -38,9 +40,9 @@ Last updated: 2026-01-27 15:30
 ### Meta Features (META)
 | Item | Priority |
 |------|----------|
+| Native iOS App | HIGH |
 | Multiplayer Mode | MEDIUM |
 | Session Persistence Across Tabs | MEDIUM |
-| Native iOS App | MEDIUM |
 | User Accounts & Authentication | MEDIUM |
 | Session Management UI | MEDIUM |
 | Competitive Mode | MEDIUM |
@@ -89,17 +91,36 @@ Last updated: 2026-01-27 15:30
 
 ### High Priority
 
-- **[UX] Filter Roster by Guessed/Unguessed**
-  > Add toggle filter to Team Roster Lookup feature: "All | Guessed | Unguessed" to help users find gaps in their knowledge for specific teams. Users can focus on which players they haven't identified yet or review their completed rosters.
-  > Pairs well with existing Filter Guessed Players feature and leverages current Team Roster exploration infrastructure.
-  > Added: 2026-01-26 | Source: UX Review
-
-### Medium Priority
-
 - **[UX] Recently Viewed Clubs Quick Access**
   > Store 3-5 most recently viewed clubs in localStorage and display as clickable chips when search is empty or focused in Team Roster Lookup. Speeds up workflow for power users who frequently browse the same team rosters.
   > Low friction enhancement that improves navigation efficiency without changing core functionality.
   > Added: 2026-01-26 | Source: UX Review
+
+- **[PERF] Full-Text Search**
+  > Migrate from simple prefix matching to SQLite FTS5 for better fuzzy matching on misspelled player names. This will significantly improve UX for users making typos (e.g., "Christiano" → "Cristiano Ronaldo").
+  > Added: 2026-01-19
+
+- **[PERF] Database Query Optimization**
+  > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
+  > Added: 2026-01-19
+
+- **[PERF] Frontend Caching Strategy**
+  > Implement aggressive caching of player lookups to reduce API calls. Use IndexedDB for persistent cache, LRU cache in memory for current session. Add cache invalidation strategy when database is updated.
+  > Added: 2026-01-19
+
+- **[UX] Dark Mode**
+  > Implement dark mode theme toggle in frontend. Persist theme preference in localStorage. Improve contrast and eye comfort for long play sessions.
+  > Added: 2026-01-19
+
+- **[META] Native iOS App**
+  > Build React Native mobile application that connects to the existing FastAPI backend. Current REST API architecture supports this. Should share session management with web version and support offline caching of player data.
+  > Added: 2026-01-19
+
+- **[GAME] Expanded Leagues**
+  > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Prioritize women's leagues with better Wikidata coverage.
+  > Added: 2026-01-19
+
+### Medium Priority
 
 - **[UX] Season Jumping in Roster Navigation**
   > Replace or augment prev/next buttons in Team Roster with dropdown or direct input for quick navigation to historical seasons. Consider adding decade jump buttons as optional feature for rapid navigation across large date ranges.
@@ -135,24 +156,8 @@ Last updated: 2026-01-27 15:30
   > Sessions should persist when users open multiple tabs. Current implementation may lose session state or create duplicate sessions. Test with multiple browser tabs and implement session ID sharing mechanism.
   > Added: 2026-01-19
 
-- **[META] Native iOS App**
-  > Build React Native mobile application that connects to the existing FastAPI backend. Current REST API architecture supports this. Should share session management with web version and support offline caching of player data.
-  > Added: 2026-01-19
-
-- **[GAME] Expanded Leagues**
-  > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Prioritize women's leagues with better Wikidata coverage.
-  > Added: 2026-01-19
-
 - **[META] User Accounts & Authentication**
   > Implement user registration, login, and session persistence across devices. Track lifetime statistics (total players guessed, sessions played, personal best). Allow users to resume incomplete sessions and compare stats with friends.
-  > Added: 2026-01-19
-
-- **[PERF] Full-Text Search**
-  > Migrate from simple prefix matching to SQLite FTS5 for better fuzzy matching on misspelled player names. This will significantly improve UX for users making typos (e.g., "Christiano" → "Cristiano Ronaldo").
-  > Added: 2026-01-19
-
-- **[PERF] Database Query Optimization**
-  > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
   > Added: 2026-01-19
 
 - **[OTHER] Automated Test Suite**
@@ -187,10 +192,6 @@ Last updated: 2026-01-27 15:30
   > Replace auto-incrementing integer session IDs with UUIDs to prevent enumeration attacks and improve security for production deployment. Update both backend and frontend.
   > Added: 2026-01-19
 
-- **[PERF] Frontend Caching Strategy**
-  > Implement aggressive caching of player lookups to reduce API calls. Use IndexedDB for persistent cache, LRU cache in memory for current session. Add cache invalidation strategy when database is updated.
-  > Added: 2026-01-19
-
 - **[UX] Player Photos & Media**
   > Integrate player images from Wikidata commons. Display photos alongside player information to enhance UX and provide visual verification for guesses.
   > Added: 2026-01-19
@@ -207,15 +208,16 @@ Last updated: 2026-01-27 15:30
   > Enhance mobile experience: (1) Increase touch targets slightly, (2) Add swipe-to-dismiss on modal, (3) Consider bottom-sheet style modal on mobile, (4) Haptic feedback on successful guesses.
   > Added: 2026-01-19 | Source: UX Review
 
-- **[UX] Dark Mode**
-  > Implement dark mode theme toggle in frontend. Persist theme preference in localStorage. Improve contrast and eye comfort for long play sessions.
-  > Added: 2026-01-19
-
 - **[OTHER] Docker Containerization**
   > Create Docker Compose configuration for easy deployment. Include backend, frontend, and database services with volume mounts for persistence.
   > Added: 2026-01-19
 
 ### Low Priority
+
+- **[UX] Filter Roster by Guessed/Unguessed**
+  > Add toggle filter to Team Roster Lookup feature: "All | Guessed | Unguessed" to help users find gaps in their knowledge for specific teams. Users can focus on which players they haven't identified yet or review their completed rosters.
+  > Pairs well with existing Filter Guessed Players feature and leverages current Team Roster exploration infrastructure.
+  > Added: 2026-01-26 | Source: UX Review
 
 - **[UX] Roster Progress Indicator**
   > Add visual progress bar showing roster completion percentage for currently viewed team, with color transitions as completion increases. Display mini-goal/milestone tracker to encourage roster completion (e.g., "3/23 players guessed").
