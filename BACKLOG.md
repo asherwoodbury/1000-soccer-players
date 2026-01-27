@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-01-26 14:15
+Last updated: 2026-01-27 15:30
 
 ## Category Index
 
@@ -88,14 +88,6 @@ Last updated: 2026-01-26 14:15
 ## To Do
 
 ### High Priority
-
-- **[GAME] Filter Guessed Players**
-  > Add filtering controls to the guessed players list to help users organize and review their progress:
-  > - Filter by position (Goalkeeper, Defender, Midfielder, Forward)
-  > - Filter by nationality
-  >
-  > Builds on existing filter input but adds structured category filters. Helps users identify gaps in their knowledge (e.g., "I've only guessed 2 goalkeepers").
-  > Added: 2026-01-25
 
 - **[UX] Filter Roster by Guessed/Unguessed**
   > Add toggle filter to Team Roster Lookup feature: "All | Guessed | Unguessed" to help users find gaps in their knowledge for specific teams. Users can focus on which players they haven't identified yet or review their completed rosters.
@@ -336,3 +328,14 @@ Last updated: 2026-01-26 14:15
   >
   > Active discovery tool separate from passive display settings.
   > Completed: 2026-01-26 | Commit: 85bc42d
+
+- **[GAME] Filter Guessed Players**
+  > Implemented filtering controls for the guessed players list to help users organize and review their progress:
+  > - Position filter dropdown (Goalkeeper, Defender, Midfielder, Forward)
+  > - Nationality filter dropdown (auto-populated from guessed players)
+  > - Clear button to reset all active filters
+  > - All filters work together with existing text search
+  > - Nationality dropdown updates dynamically as new players are guessed
+  >
+  > Builds on existing filter infrastructure and helps users identify gaps in their knowledge by category.
+  > Completed: 2026-01-27

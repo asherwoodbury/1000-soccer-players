@@ -54,16 +54,31 @@
 
         <div id="guessed-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-guessed">
             <div class="filters">
-                <input
-                    type="text"
-                    id="filter-input"
-                    placeholder="Filter by club or country..."
-                    aria-label="Filter guessed players by club or country"
-                >
+                <div class="filter-row">
+                    <input
+                        type="text"
+                        id="filter-input"
+                        placeholder="Search by name or club..."
+                        aria-label="Filter guessed players by name or club"
+                    >
+                </div>
+                <div class="filter-row filter-dropdowns">
+                    <select id="filter-position" aria-label="Filter by position">
+                        <option value="">All Positions</option>
+                        <option value="Goalkeeper">Goalkeeper</option>
+                        <option value="Defender">Defender</option>
+                        <option value="Midfielder">Midfielder</option>
+                        <option value="Forward">Forward</option>
+                    </select>
+                    <select id="filter-nationality" aria-label="Filter by nationality">
+                        <option value="">All Nationalities</option>
+                    </select>
+                    <button id="clear-filters" class="clear-filters-btn" aria-label="Clear all filters" title="Clear all filters">Clear</button>
+                </div>
             </div>
 
             <div class="players-section">
-                <h2>Guessed Players <span id="filtered-count"></span></h2>
+                <h2>Guessed Players <span id="filtered-count" aria-live="polite" aria-atomic="true"></span></h2>
                 <div id="players-list" class="players-list"></div>
             </div>
         </div>

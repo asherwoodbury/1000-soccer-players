@@ -43,6 +43,9 @@ const messageDiv = document.getElementById('message');
 const playerCountEl = document.getElementById('player-count');
 const playersList = document.getElementById('players-list');
 const filterInput = document.getElementById('filter-input');
+const filterPosition = document.getElementById('filter-position');
+const filterNationality = document.getElementById('filter-nationality');
+const clearFiltersBtn = document.getElementById('clear-filters');
 const filteredCountEl = document.getElementById('filtered-count');
 const modal = document.getElementById('player-modal');
 const modalClose = modal.querySelector('.modal-close');
@@ -168,6 +171,10 @@ async function initSession() {
 function setupEventListeners() {
     guessForm.addEventListener('submit', handleGuess);
     filterInput.addEventListener('input', handleFilter);
+    filterInput.addEventListener('keydown', handleFilterKeydown);
+    filterPosition.addEventListener('change', handleFilter);
+    filterNationality.addEventListener('change', handleFilter);
+    clearFiltersBtn.addEventListener('click', clearAllFilters);
     modalClose.addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
@@ -336,7 +343,65 @@ async function handleGuess(e) {
 }
 
 function handleFilter() {
+    updateFilterVisualStates();
     renderPlayersList();
+}
+
+function handleFilterKeydown(e) {
+    // Escape clears the text filter
+    if (e.key === 'Escape' && filterInput.value) {
+        e.preventDefault();
+        filterInput.value = '';
+        handleFilter();
+    }
+}
+
+function clearAllFilters() {
+    filterInput.value = '';
+    filterPosition.value = '';
+    filterNationality.value = '';
+    updateFilterVisualStates();
+    renderPlayersList();
+}
+
+function updateFilterVisualStates() {
+    const textFilter = filterInput.value.trim();
+    const positionFilter = filterPosition.value;
+    const nationalityFilter = filterNationality.value;
+    const hasActiveFilters = textFilter || positionFilter || nationalityFilter;
+
+    // Update Clear button state
+    clearFiltersBtn.classList.toggle('has-filters', hasActiveFilters);
+
+    // Update dropdown visual states
+    filterPosition.classList.toggle('has-value', !!positionFilter);
+    filterNationality.classList.toggle('has-value', !!nationalityFilter);
+}
+
+function updateNationalityOptions() {
+    // Get unique nationalities from guessed players, sorted alphabetically
+    const nationalities = [...new Set(
+        guessedPlayers
+            .map(p => p.nationality)
+            .filter(Boolean)
+    )].sort();
+
+    // Preserve current selection if still valid
+    const currentValue = filterNationality.value;
+
+    // Rebuild options
+    filterNationality.innerHTML = '<option value="">All Nationalities</option>';
+    nationalities.forEach(nat => {
+        const option = document.createElement('option');
+        option.value = nat;
+        option.textContent = nat;
+        filterNationality.appendChild(option);
+    });
+
+    // Restore selection if still valid
+    if (nationalities.includes(currentValue)) {
+        filterNationality.value = currentValue;
+    }
 }
 
 function updateUI(isNewPlayer = false) {
@@ -350,22 +415,45 @@ function updateUI(isNewPlayer = false) {
         }, 300);
     }
 
+    // Update nationality dropdown options
+    updateNationalityOptions();
+
     renderPlayersList(isNewPlayer);
 }
 
 function renderPlayersList(highlightNew = false) {
-    const filter = filterInput.value.toLowerCase().trim();
+    const textFilter = filterInput.value.toLowerCase().trim();
+    const positionFilter = filterPosition.value;
+    const nationalityFilter = filterNationality.value;
 
     let filteredPlayers = guessedPlayers;
 
-    if (filter) {
-        filteredPlayers = guessedPlayers.filter(player => {
-            // Match on name, nationality, or clubs
-            if (player.name.toLowerCase().includes(filter)) return true;
-            if (player.nationality?.toLowerCase().includes(filter)) return true;
-            if (player.top_clubs?.some(c => c.toLowerCase().includes(filter))) return true;
+    // Apply text filter (name or club)
+    if (textFilter) {
+        filteredPlayers = filteredPlayers.filter(player => {
+            if (player.name.toLowerCase().includes(textFilter)) return true;
+            if (player.top_clubs?.some(c => c.toLowerCase().includes(textFilter))) return true;
             return false;
         });
+    }
+
+    // Apply position filter
+    if (positionFilter) {
+        filteredPlayers = filteredPlayers.filter(player =>
+            player.position === positionFilter
+        );
+    }
+
+    // Apply nationality filter
+    if (nationalityFilter) {
+        filteredPlayers = filteredPlayers.filter(player =>
+            player.nationality === nationalityFilter
+        );
+    }
+
+    // Update filter count display
+    const hasActiveFilters = textFilter || positionFilter || nationalityFilter;
+    if (hasActiveFilters) {
         filteredCountEl.textContent = `(showing ${filteredPlayers.length})`;
     } else {
         filteredCountEl.textContent = '';
@@ -379,9 +467,20 @@ function renderPlayersList(highlightNew = false) {
                 </div>
             `;
         } else {
+            // Build a description of active filters for the empty state message
+            const activeFilters = [];
+            if (textFilter) activeFilters.push(`"${filterInput.value}"`);
+            if (positionFilter) activeFilters.push(positionFilter + 's');
+            if (nationalityFilter) activeFilters.push(nationalityFilter + ' players');
+
+            const filterDesc = activeFilters.length > 0
+                ? `No players match ${activeFilters.join(' + ')}.`
+                : 'No players match your filter.';
+
             playersList.innerHTML = `
-                <div class="empty-state">
-                    No players match your filter.
+                <div class="empty-state filter-empty">
+                    ${filterDesc}
+                    <br><button class="clear-inline-btn" onclick="clearAllFilters()">Clear filters</button>
                 </div>
             `;
         }
