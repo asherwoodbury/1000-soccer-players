@@ -47,12 +47,12 @@
             <div id="message" class="message"></div>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" data-tab="guessed" aria-selected="true">Guessed Players</button>
-            <button class="tab" data-tab="roster" aria-selected="false">Team Roster</button>
+        <div class="tabs" role="tablist" aria-label="Player views">
+            <button class="tab active" data-tab="guessed" role="tab" aria-selected="true" aria-controls="guessed-tab" id="tab-guessed">Guessed Players</button>
+            <button class="tab" data-tab="roster" role="tab" aria-selected="false" aria-controls="roster-tab" id="tab-roster">Team Roster</button>
         </div>
 
-        <div id="guessed-tab" class="tab-content active">
+        <div id="guessed-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-guessed">
             <div class="filters">
                 <input
                     type="text"
@@ -68,7 +68,7 @@
             </div>
         </div>
 
-        <div id="roster-tab" class="tab-content">
+        <div id="roster-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-roster">
             <div class="roster-search">
                 <div class="roster-search-row">
                     <input
@@ -91,7 +91,7 @@
                         <button id="season-next" class="season-btn" aria-label="Next season">&rarr;</button>
                     </div>
                 </div>
-                <div class="roster-stats">
+                <div class="roster-stats" aria-live="polite" aria-atomic="true">
                     <span id="roster-guessed-count">0</span> / <span id="roster-total-count">0</span> players guessed
                 </div>
                 <div id="roster-players" class="roster-players"></div>

@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-01-25
+Last updated: 2026-01-26 14:15
 
 ## Category Index
 
@@ -89,27 +89,6 @@ Last updated: 2026-01-25
 
 ### High Priority
 
-- **[GAME] Player Info Display Settings**
-  > Configurable display preferences for player information shown after a successful guess. All settings toggleable via a Settings UI. Player name is always shown; other fields are optional:
-  > - Nationality (toggle)
-  > - Top 3 teams by appearances (toggle)
-  > - Full club history (toggle, requires Top 3 to be enabled)
-  > - Position (toggle)
-  > - Career span, e.g. "2005-2020" or "2018-present" (toggle)
-  >
-  > Settings should persist in localStorage. This replaces the concept of "hints" with user-controlled display preferences.
-  > Added: 2026-01-25 | Replaces: Hint System
-
-- **[GAME] Team Roster Lookup**
-  > Exploration tool to help users recall players by browsing team rosters. Features:
-  > - Search for any club or national team
-  > - Select a specific year/season (e.g., "2017/18" or "2025/26")
-  > - Display the roster for that team/season, highlighting players you've already guessed
-  > - Unguessed players shown as blanks or silhouettes (not revealed)
-  >
-  > This is an active discovery tool, separate from passive display settings. Should be toggleable on/off in Settings under "Exploration Tools."
-  > Added: 2026-01-25 | Replaces: Hint System (roster feature)
-
 - **[GAME] Filter Guessed Players**
   > Add filtering controls to the guessed players list to help users organize and review their progress:
   > - Filter by position (Goalkeeper, Defender, Midfielder, Forward)
@@ -118,7 +97,22 @@ Last updated: 2026-01-25
   > Builds on existing filter input but adds structured category filters. Helps users identify gaps in their knowledge (e.g., "I've only guessed 2 goalkeepers").
   > Added: 2026-01-25
 
+- **[UX] Filter Roster by Guessed/Unguessed**
+  > Add toggle filter to Team Roster Lookup feature: "All | Guessed | Unguessed" to help users find gaps in their knowledge for specific teams. Users can focus on which players they haven't identified yet or review their completed rosters.
+  > Pairs well with existing Filter Guessed Players feature and leverages current Team Roster exploration infrastructure.
+  > Added: 2026-01-26 | Source: UX Review
+
 ### Medium Priority
+
+- **[UX] Recently Viewed Clubs Quick Access**
+  > Store 3-5 most recently viewed clubs in localStorage and display as clickable chips when search is empty or focused in Team Roster Lookup. Speeds up workflow for power users who frequently browse the same team rosters.
+  > Low friction enhancement that improves navigation efficiency without changing core functionality.
+  > Added: 2026-01-26 | Source: UX Review
+
+- **[UX] Season Jumping in Roster Navigation**
+  > Replace or augment prev/next buttons in Team Roster with dropdown or direct input for quick navigation to historical seasons. Consider adding decade jump buttons as optional feature for rapid navigation across large date ranges.
+  > Reduces friction when exploring team histories across many seasons.
+  > Added: 2026-01-26 | Source: UX Review
 
 - **[GAME] Category Progress Indicators**
   > Show completion percentages by category to motivate collection and reveal knowledge gaps. Example: "German players: 47/312 (15%)", "Goalkeepers: 23/89 (26%)".
@@ -231,6 +225,16 @@ Last updated: 2026-01-25
 
 ### Low Priority
 
+- **[UX] Roster Progress Indicator**
+  > Add visual progress bar showing roster completion percentage for currently viewed team, with color transitions as completion increases. Display mini-goal/milestone tracker to encourage roster completion (e.g., "3/23 players guessed").
+  > Creates visual feedback and encourages users to complete specific team rosters as side goals.
+  > Added: 2026-01-26 | Source: UX Review
+
+- **[UX] Roster Sharing Feature**
+  > Add share button for completed or partial roster achievements. Generate shareable card or link showing roster completion percentage and highlighted guessed players. Enables social engagement and allows users to showcase progress.
+  > Social feature to drive engagement and word-of-mouth promotion.
+  > Added: 2026-01-26 | Source: UX Review
+
 - **[OTHER] API Documentation Improvements**
   > Enhance Swagger/OpenAPI documentation with more detailed response examples, error codes, and ambiguity resolution flow. Add documentation for pagination (if implementing for large result sets).
   > Added: 2026-01-19
@@ -310,3 +314,25 @@ Last updated: 2026-01-25
 - **[OTHER] Refactor Player Matching Logic**
   > Refactored matching logic into `PlayerMatcher` service class in `backend/app/services/player_matcher.py`. Created separate `fuzzy_matching.py` module with Levenshtein distance, Soundex, and Metaphone algorithms. Added 67 unit tests with full coverage. Improves testability and enables Smart Name Matching feature.
   > Completed: 2026-01-25
+
+- **[GAME] Player Info Display Settings**
+  > Implemented configurable display preferences for player information shown after a successful guess. Five toggleable fields via Settings UI:
+  > - Nationality (toggle)
+  > - Position (toggle)
+  > - Career Span, e.g. "2005-2020" or "2018-present" (toggle)
+  > - Top 3 Clubs by appearances (toggle)
+  > - Full Club History (toggle, requires Top 3 to be enabled)
+  >
+  > Settings persist in localStorage. Replaces the concept of "hints" with user-controlled display preferences.
+  > Completed: 2026-01-26 | Commit: 85bc42d
+
+- **[GAME] Team Roster Lookup**
+  > Implemented exploration tool to help users recall players by browsing team rosters. Features:
+  > - Backend API: /api/clubs/search (club search with autocomplete), /api/clubs/{id}/roster (roster retrieval), /api/clubs/{id}/years (season/year selection)
+  > - Frontend: Dual-tab interface with "Guessed Players" and "Team Roster" tabs
+  > - Club search with autocomplete, roster display with season navigation
+  > - Guessed players shown in green, unguessed shown as "?????" (not revealed)
+  > - Toggleable in Settings under "Exploration Tools"
+  >
+  > Active discovery tool separate from passive display settings.
+  > Completed: 2026-01-26 | Commit: 85bc42d

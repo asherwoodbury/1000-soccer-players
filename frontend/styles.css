@@ -567,6 +567,11 @@ header h1 {
     display: none;
 }
 
+.tab:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .tab-content {
     display: none;
 }
@@ -599,6 +604,11 @@ header h1 {
     border-color: var(--primary);
 }
 
+#club-search-input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
 .club-search-results {
     position: absolute;
     top: 100%;
@@ -629,8 +639,14 @@ header h1 {
     border-bottom: none;
 }
 
-.club-result:hover {
+.club-result:hover,
+.club-result.highlighted {
     background: var(--bg);
+}
+
+.club-result:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
 }
 
 .club-result-name {
@@ -695,6 +711,11 @@ header h1 {
     cursor: not-allowed;
 }
 
+.season-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 #roster-season {
     font-weight: 600;
     min-width: 80px;
@@ -738,6 +759,15 @@ header h1 {
     font-style: italic;
 }
 
+.roster-player.guessed {
+    cursor: pointer;
+}
+
+.roster-player.guessed:hover {
+    background: #bbf7d0;
+    transform: translateY(-1px);
+}
+
 .roster-player-position {
     font-size: 0.75rem;
     opacity: 0.7;
@@ -758,6 +788,53 @@ header h1 {
 .roster-hint {
     font-size: 0.85rem;
     opacity: 0.8;
+}
+
+/* Loading state for roster */
+.roster-players.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Roster empty inline state */
+.roster-empty-inline {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+}
+
+/* Roster player entrance animation */
+.roster-player {
+    animation: rosterFadeIn 0.2s ease;
+}
+
+@keyframes rosterFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Stagger animation for roster items */
+.roster-player:nth-child(1) { animation-delay: 0ms; }
+.roster-player:nth-child(2) { animation-delay: 20ms; }
+.roster-player:nth-child(3) { animation-delay: 40ms; }
+.roster-player:nth-child(4) { animation-delay: 60ms; }
+.roster-player:nth-child(5) { animation-delay: 80ms; }
+.roster-player:nth-child(6) { animation-delay: 100ms; }
+.roster-player:nth-child(7) { animation-delay: 120ms; }
+.roster-player:nth-child(8) { animation-delay: 140ms; }
+.roster-player:nth-child(n+9) { animation-delay: 160ms; }
+
+/* Focus state for guessed roster players */
+.roster-player.guessed:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 /* Responsive */

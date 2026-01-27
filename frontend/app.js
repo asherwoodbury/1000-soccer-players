@@ -84,6 +84,7 @@ let currentClub = null;
 let currentSeason = new Date().getFullYear();
 let clubYearRange = { min: 2000, max: 2025 };
 let clubSearchTimeout = null;
+let highlightedResultIndex = -1;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -230,6 +231,7 @@ function setupEventListeners() {
             clubSearchResults.classList.remove('hidden');
         }
     });
+    clubSearchInput.addEventListener('keydown', handleClubSearchKeydown);
 
     // Close search results when clicking outside
     document.addEventListener('click', (e) => {
@@ -564,6 +566,9 @@ function handleClubSearch() {
         clearTimeout(clubSearchTimeout);
     }
 
+    // Reset highlighted index on new search
+    highlightedResultIndex = -1;
+
     if (query.length < 2) {
         clubSearchResults.classList.add('hidden');
         clubSearchResults.innerHTML = '';
@@ -585,8 +590,8 @@ function handleClubSearch() {
                     </div>
                 `;
             } else {
-                clubSearchResults.innerHTML = clubs.map(club => `
-                    <div class="club-result" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}">
+                clubSearchResults.innerHTML = clubs.map((club, index) => `
+                    <div class="club-result" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}" data-index="${index}">
                         <span class="club-result-name">${escapeHtml(club.name)}</span>
                         ${club.is_national_team ? '<span class="club-result-badge">National Team</span>' : ''}
                     </div>
@@ -608,6 +613,43 @@ function handleClubSearch() {
             console.error('Club search error:', e);
         }
     }, 300);
+}
+
+// Keyboard navigation for club search results
+function handleClubSearchKeydown(e) {
+    const results = clubSearchResults.querySelectorAll('.club-result[data-club-id]');
+    if (results.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlightedResultIndex = Math.min(highlightedResultIndex + 1, results.length - 1);
+        updateHighlightedResult(results);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlightedResultIndex = Math.max(highlightedResultIndex - 1, 0);
+        updateHighlightedResult(results);
+    } else if (e.key === 'Enter' && highlightedResultIndex >= 0) {
+        e.preventDefault();
+        const selected = results[highlightedResultIndex];
+        if (selected) {
+            selectClub(
+                parseInt(selected.dataset.clubId),
+                selected.dataset.clubName
+            );
+        }
+    } else if (e.key === 'Escape') {
+        clubSearchResults.classList.add('hidden');
+        highlightedResultIndex = -1;
+    }
+}
+
+function updateHighlightedResult(results) {
+    results.forEach((result, index) => {
+        result.classList.toggle('highlighted', index === highlightedResultIndex);
+        if (index === highlightedResultIndex) {
+            result.scrollIntoView({ block: 'nearest' });
+        }
+    });
 }
 
 // Select a club and load its roster
@@ -637,6 +679,9 @@ async function selectClub(clubId, clubName) {
 // Load roster for current club and season
 async function loadRoster() {
     if (!currentClub) return;
+
+    // Show loading state
+    rosterPlayers.classList.add('loading');
 
     try {
         const response = await fetch(
@@ -676,7 +721,7 @@ async function loadRoster() {
             rosterPlayers.innerHTML = sortedPlayers.map(player => {
                 const isGuessed = guessedIds.has(player.id);
                 return `
-                    <div class="roster-player ${isGuessed ? 'guessed' : 'unguessed'}">
+                    <div class="roster-player ${isGuessed ? 'guessed' : 'unguessed'}" ${isGuessed ? `data-player-id="${player.id}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(player.name)}"` : ''}>
                         <div class="${isGuessed ? '' : 'player-name-hidden'}">
                             ${isGuessed ? escapeHtml(player.name) : '?????'}
                         </div>
@@ -684,6 +729,23 @@ async function loadRoster() {
                     </div>
                 `;
             }).join('');
+
+            // Add click handlers for guessed players
+            rosterPlayers.querySelectorAll('.roster-player.guessed').forEach(card => {
+                const openModal = () => {
+                    const playerId = parseInt(card.dataset.playerId);
+                    const player = guessedPlayers.find(p => p.id === playerId);
+                    if (player) showPlayerModal(player);
+                };
+
+                card.addEventListener('click', openModal);
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openModal();
+                    }
+                });
+            });
         }
 
         // Update season buttons
@@ -696,6 +758,8 @@ async function loadRoster() {
 
     } catch (e) {
         console.error('Error loading roster:', e);
+    } finally {
+        rosterPlayers.classList.remove('loading');
     }
 }
 
