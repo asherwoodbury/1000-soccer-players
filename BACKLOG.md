@@ -1,15 +1,15 @@
 # Project Backlog
 
-Last updated: 2026-01-27 16:00
+Last updated: 2026-01-27 16:45
 
 ## Category Index
 
 ### Performance (PERF)
 | Item | Priority |
 |------|----------|
-| Full-Text Search (FTS5) | HIGH |
 | Database Query Optimization | HIGH |
 | Frontend Caching Strategy | HIGH |
+| Full-Text Search (FTS5) | COMPLETED |
 
 ### UX Improvements (UX)
 | Item | Priority |
@@ -96,9 +96,6 @@ Last updated: 2026-01-27 16:00
   > Low friction enhancement that improves navigation efficiency without changing core functionality.
   > Added: 2026-01-26 | Source: UX Review
 
-- **[PERF] Full-Text Search**
-  > Migrate from simple prefix matching to SQLite FTS5 for better fuzzy matching on misspelled player names. This will significantly improve UX for users making typos (e.g., "Christiano" → "Cristiano Ronaldo").
-  > Added: 2026-01-19
 
 - **[PERF] Database Query Optimization**
   > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
@@ -340,4 +337,15 @@ Last updated: 2026-01-27 16:00
   > - Nationality dropdown updates dynamically as new players are guessed
   >
   > Builds on existing filter infrastructure and helps users identify gaps in their knowledge by category.
+  > Completed: 2026-01-27
+
+- **[PERF] Full-Text Search (FTS5)**
+  > Implemented SQLite FTS5 virtual table with unicode61 tokenizer for comprehensive full-text search capabilities. Features:
+  > - FTS5 virtual table with auto-sync triggers to keep index updated
+  > - fts_search() function for fast prefix-based player lookup
+  > - fts_search_fuzzy() function combining FTS5 with Levenshtein distance filtering
+  > - Handles common typos: "ronaldino" → Ronaldinho, "naymar" → Neymar, "christiano" → Cristiano
+  > - Seamlessly integrated into /api/players/lookup endpoint as fallback when exact/prefix match fails
+  >
+  > Significantly improves UX for users making typos and expands fuzzy matching capabilities beyond Levenshtein distance alone.
   > Completed: 2026-01-27
