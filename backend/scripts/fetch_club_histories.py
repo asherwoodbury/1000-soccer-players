@@ -92,6 +92,9 @@ def get_players_without_clubs(conn, limit: int = 1000) -> list[tuple[int, str]]:
     """
     Get players who don't have any club history yet.
     Returns list of (player_id, wikidata_id) tuples.
+
+    Note: Players are ordered by ID to ensure consistent batching.
+    If a batch fails, the same players will be retried on the next run.
     """
     cursor = conn.cursor()
     cursor.execute("""
@@ -99,9 +102,26 @@ def get_players_without_clubs(conn, limit: int = 1000) -> list[tuple[int, str]]:
         FROM players p
         LEFT JOIN player_clubs pc ON p.id = pc.player_id
         WHERE pc.id IS NULL
+        ORDER BY p.id
         LIMIT ?
     """, (limit,))
     return cursor.fetchall()
+
+
+def mark_player_no_clubs(conn, player_id: int):
+    """
+    Insert a placeholder record to mark a player as having no clubs in Wikidata.
+    Uses club_id = 0 as a sentinel value.
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT OR IGNORE INTO player_clubs
+            (player_id, club_id, start_date, end_date, is_national_team)
+            VALUES (?, 0, NULL, NULL, 0)
+        """, (player_id,))
+    except Exception as e:
+        print(f"Error marking player {player_id} as no clubs: {e}")
 
 
 def main():
@@ -163,10 +183,16 @@ def main():
 
         # For players with no clubs found, insert a placeholder to mark them as processed
         # (so they don't get queried again)
+        players_without_clubs = 0
         for wikidata_id in wikidata_ids:
             if wikidata_id not in club_histories:
-                # Player has no clubs in Wikidata - that's okay, they're still processed
-                pass
+                player_db_id = player_ids.get(wikidata_id)
+                if player_db_id:
+                    mark_player_no_clubs(conn, player_db_id)
+                    players_without_clubs += 1
+
+        if players_without_clubs > 0:
+            print(f"  Marked {players_without_clubs} players as having no clubs in Wikidata")
 
         conn.commit()
         processed += len(players)
