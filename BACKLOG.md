@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-01-27 16:45
+Last updated: 2026-01-27
 
 ## Category Index
 
@@ -14,8 +14,10 @@ Last updated: 2026-01-27 16:45
 ### UX Improvements (UX)
 | Item | Priority |
 |------|----------|
-| Smart Name Matching | IN PROGRESS |
-| Recently Viewed Clubs Quick Access | HIGH |
+| Smart Name Matching | COMPLETED |
+| Recently Viewed Clubs Quick Access | COMPLETED |
+| Clickable Team Links in Player Profiles | COMPLETED |
+| Shorter National Team Names | HIGH |
 | Dark Mode | HIGH |
 | Progress Visualization | MEDIUM |
 | Player Statistics Dashboard | LOW |
@@ -24,13 +26,24 @@ Last updated: 2026-01-27 16:45
 | Mobile Touch Improvements | MEDIUM |
 | Filter Roster by Guessed/Unguessed | LOW |
 
+### Bugs (BUG)
+| Item | Priority |
+|------|----------|
+| Team Roster Shows Too Many Players | CRITICAL |
+| Roster Doesn't Update When Guessing Player | CRITICAL |
+
+### Data (DATA)
+| Item | Priority |
+|------|----------|
+| Prioritize Senior National Teams | HIGH |
+
 ### Game Features (GAME)
 | Item | Priority |
 |------|----------|
 | Player Info Display Settings | COMPLETED |
 | Team Roster Lookup | COMPLETED |
 | Filter Guessed Players | COMPLETED |
-| Expanded Leagues | HIGH |
+| Expanded Leagues & National Teams | HIGH |
 | Category Progress Indicators | MEDIUM |
 | Same Team Indicator | MEDIUM |
 | Different Game Modes | LOW |
@@ -59,43 +72,32 @@ Last updated: 2026-01-27 16:45
 
 ---
 
-## In Progress
-
-- **[UX] Smart Name Matching**
-  > Comprehensive name matching system that balances usability with game integrity: (1) Fuzzy matching with length-based thresholds - accept 1-2 character typos on longer names without revealing answers, using Levenshtein distance and/or phonetic algorithms (Soundex/Metaphone), (2) Require first + last name for most players to prevent "Adams" matching multiple players, (3) Mononym support - allow single-name guesses for players known by one name (Ronaldinho, Pelé, Neymar) via `is_mononym` flag populated from Wikidata, (4) Disambiguation UI when multiple players still match - show photos/nationality/club for quick selection. Key principle: reward knowing the player (typo tolerance) without giving away answers (no autocomplete suggestions).
-  > Added: 2026-01-25 | Combines: Improved Ambiguity Resolution, Autocomplete Hints
-  >
-  > **Implementation Progress (2026-01-25):**
-  > - [x] Created `fuzzy_matching.py` module with Levenshtein distance, Soundex, and Metaphone algorithms
-  > - [x] Created `PlayerMatcher` service class with clean interface for player lookups
-  > - [x] Implemented length-based thresholds (0 edits for ≤4 chars, 1 for 5-8, 2 for 9+)
-  > - [x] Added length ratio check to prevent "Ronaldo" matching "Ronaldinho" (must be within 20%)
-  > - [x] Implemented name validation (first + last name requirement)
-  > - [x] Added mononym detection heuristic (first_name IS NULL)
-  > - [x] Created 67 unit tests (42 fuzzy matching + 25 PlayerMatcher), all passing
-  > - [ ] Add `is_mononym` column to players table schema
-  > - [ ] Update Wikidata extractor to populate `is_mononym` flag
-  > - [ ] Integrate PlayerMatcher service into `/api/players/lookup` endpoint
-  > - [ ] Update frontend to handle `NEED_FULL_NAME` response
-  > - [ ] Build disambiguation UI component
-  >
-  > **Key Files:**
-  > - `backend/app/services/fuzzy_matching.py` - Core matching algorithms
-  > - `backend/app/services/player_matcher.py` - PlayerMatcher service class
-  > - `backend/tests/test_fuzzy_matching.py` - Algorithm tests
-  > - `backend/tests/test_player_matcher.py` - Service tests
-
----
-
 ## To Do
+
+### Critical Priority
+
+- **[BUG] Team Roster Shows Too Many Players**
+  > Team rosters are showing far too many players (Dortmund: 79, Juventus: 200+). The roster query is likely including all players who ever played for the team, not just those active in the selected season. Need to fix the season filtering logic in the roster endpoint.
+  > Added: 2026-01-27
+
+- **[BUG] Roster Doesn't Update When Guessing Player From Current Team**
+  > When viewing a team's roster and guessing a player from that team, the roster doesn't update to show the player as guessed until navigating away and back (changing season). The roster should refresh in real-time when a guess is made.
+  > Added: 2026-01-27
 
 ### High Priority
 
-- **[UX] Recently Viewed Clubs Quick Access**
-  > Store 3-5 most recently viewed clubs in localStorage and display as clickable chips when search is empty or focused in Team Roster Lookup. Speeds up workflow for power users who frequently browse the same team rosters.
-  > Low friction enhancement that improves navigation efficiency without changing core functionality.
-  > Added: 2026-01-26 | Source: UX Review
+- **[UX] Shorter National Team Names**
+  > Rename national teams to use shorter, more readable format:
+  > - "Argentina men's national association football team" → "Argentina (M)"
+  > - "Germany women's national football team" → "Germany (W)"
+  > - "Brazil national under-20 football team" → "Brazil U20"
+  > - "France national under-23 football team" → "France U23"
+  > This affects display in player profiles, roster headers, and search results.
+  > Added: 2026-01-27
 
+- **[DATA] Prioritize Senior National Teams**
+  > When searching for national teams, prioritize top men's and women's senior teams over youth teams (U17, U19, U20, U23). Currently searching "Argentina" might return youth teams first. Senior teams should appear at top of search results and be the default when clicking a nationality link.
+  > Added: 2026-01-27
 
 - **[PERF] Database Query Optimization**
   > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
@@ -113,9 +115,9 @@ Last updated: 2026-01-27 16:45
   > Build React Native mobile application that connects to the existing FastAPI backend. Current REST API architecture supports this. Should share session management with web version and support offline caching of player data.
   > Added: 2026-01-19
 
-- **[GAME] Expanded Leagues**
-  > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Prioritize women's leagues with better Wikidata coverage.
-  > Added: 2026-01-19
+- **[GAME] Expanded Leagues & National Teams**
+  > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Also prioritize women's leagues and women's national teams with better Wikidata coverage.
+  > Added: 2026-01-19 | Updated: 2026-01-27
 
 ### Medium Priority
 
@@ -348,4 +350,45 @@ Last updated: 2026-01-27 16:45
   > - Seamlessly integrated into /api/players/lookup endpoint as fallback when exact/prefix match fails
   >
   > Significantly improves UX for users making typos and expands fuzzy matching capabilities beyond Levenshtein distance alone.
+  > Completed: 2026-01-27
+
+- **[UX] Smart Name Matching**
+  > Comprehensive name matching system that balances usability with game integrity. Features:
+  > - **Typo tolerance**: FTS5 + Levenshtein distance with length-based thresholds (0 edits for ≤4 chars, 1 for 5-8, 2 for 9+)
+  > - **First + last name requirement**: Players must be guessed with full name (e.g., "Lionel Messi" not just "Messi")
+  > - **Mononym support**: ~50 players known by single names (Pelé, Neymar, Ronaldinho, etc.) can be guessed with one name
+  > - **Length ratio check**: Prevents "Ronaldo" from matching "Ronaldinho" (must be within 20% length)
+  > - **Phonetic algorithms**: Soundex and Metaphone for sound-alike matching
+  >
+  > Design decision: Disambiguation UI (showing candidates when multiple players match) was intentionally omitted to keep the game challenging. When ambiguous, users must provide more specific names.
+  >
+  > Key files: `fuzzy_matching.py`, `database.py` (FTS5 functions), `players.py` (KNOWN_MONONYMS)
+  > Completed: 2026-01-27 | Combines: FTS5, fuzzy matching algorithms, first+last name requirement
+
+- **[UX] Recently Viewed Clubs Quick Access**
+  > Quick access to recently viewed clubs in Team Roster Lookup. Features:
+  > - Stores up to 5 most recently viewed clubs in localStorage
+  > - Displays as clickable chips below the search input
+  > - Clicking a chip immediately loads that club's roster
+  > - **Active club highlighting**: Currently viewed club is highlighted in blue
+  > - **Clear button**: × button to clear all recent clubs
+  > - Chips have hover/focus states, staggered animations, and responsive design
+  > - List updates automatically when new clubs are viewed (most recent first)
+  >
+  > Speeds up workflow for users who frequently browse the same team rosters.
+  > Key files: `frontend/app.js` (recentClubs state, render functions), `frontend/styles.css` (.recent-club-chip)
+  > Completed: 2026-01-27
+
+- **[UX] Clickable Team Links in Player Profiles**
+  > All team names in player profiles are now clickable, navigating to that team's roster. Features:
+  > - **Nationality link**: Clicks navigate to the national team roster (searches for "[Country] national team")
+  > - **Top Clubs links**: Each club name is clickable, opens that club's roster
+  > - **Full Club History links**: Every club/team in the history is clickable
+  > - **Current team highlighting**: Teams where player is still active (no end_date) show:
+  >   - Blue gradient background in club history
+  >   - "Current" badge next to the team name
+  >   - Bold text in top clubs list
+  >
+  > Creates seamless navigation between player profiles and team rosters for exploration.
+  > Key files: `frontend/app.js` (navigateToClubRoster, navigateToNationalTeam), `frontend/styles.css` (.club-link, .current-club)
   > Completed: 2026-01-27

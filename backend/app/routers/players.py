@@ -84,6 +84,25 @@ def calculate_career_span(clubs: list) -> Optional[str]:
     else:
         return f"{earliest}-present"
 
+# Known mononyms (players commonly known by a single name)
+# These are exceptions to the "require first and last name" rule
+KNOWN_MONONYMS = {
+    # Brazilian legends
+    "pele", "ronaldinho", "ronaldo", "kaka", "neymar", "rivaldo", "cafu",
+    "robinho", "hulk", "fred", "willian", "firmino", "casemiro", "fabinho",
+    "ederson", "alisson", "thiago", "dani", "marcelo", "adriano", "denilson",
+    "juninho", "edmundo", "bebeto", "romario", "zico", "socrates", "falcao",
+    "garrincha", "jairzinho", "tostao", "rivelino", "dida", "gilberto",
+    # Portuguese
+    "eusebio", "figo",
+    # Other single-name players
+    "xavi", "iniesta", "puyol", "isco", "saul", "koke", "morata",
+    "coutinho", "vinicius", "rodrygo", "militao", "valverde",
+    "chicharito", "ochoa",
+    # Goalkeepers often known by single name
+    "buffon", "casillas", "neuer", "oblak", "courtois", "lloris",
+}
+
 router = APIRouter()
 
 
@@ -135,10 +154,19 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
     - If multiple matches: returns "be more specific" message
     - If no match: returns not found
     """
+    normalized = normalize_name(name)
+    words = normalized.split()
+
+    # Require both first and last name, unless it's a known mononym
+    if len(words) < 2 and normalized not in KNOWN_MONONYMS:
+        return PlayerLookupResult(
+            found=False,
+            player=None,
+            message="Please enter the player's full name (first and last name)."
+        )
+
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    normalized = normalize_name(name)
 
     # Try exact normalized match first
     cursor.execute("""
@@ -199,7 +227,7 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
                     found=False,
                     ambiguous=True,
                     count=len(unique_players),
-                    message=f"Found {len(unique_players)} players with similar names. Please be more specific (try including nationality or full name)."
+                    message=f"Found {len(unique_players)} players with that name. Please enter the player's full name to narrow it down."
                 )
 
     # Found exactly one player (or multiple entries for same player)

@@ -18,12 +18,21 @@ class SessionResponse(BaseModel):
     player_count: int
 
 
+class ClubHistory(BaseModel):
+    name: str
+    start_date: Optional[str]
+    end_date: Optional[str]
+    is_national_team: bool
+
+
 class GuessedPlayerSummary(BaseModel):
     id: int
     name: str
     nationality: Optional[str]
     position: Optional[str]
     top_clubs: list[str]
+    clubs: list[ClubHistory]
+    career_span: Optional[str]
     guessed_at: str
 
 
@@ -85,15 +94,71 @@ async def get_session(session_id: int):
 
     players = []
     for row in cursor.fetchall():
-        # Get top clubs for each player
+        player_id = row['id']
+
+        # Get full club history
         cursor.execute("""
-            SELECT c.name
+            SELECT c.name, pc.start_date, pc.end_date, pc.is_national_team
             FROM player_clubs pc
             JOIN clubs c ON pc.club_id = c.id
-            WHERE pc.player_id = ? AND pc.is_national_team = 0
-            LIMIT 3
-        """, (row['id'],))
-        top_clubs = [r['name'] for r in cursor.fetchall()]
+            WHERE pc.player_id = ?
+            ORDER BY pc.start_date
+        """, (player_id,))
+
+        clubs = [
+            ClubHistory(
+                name=r['name'],
+                start_date=r['start_date'],
+                end_date=r['end_date'],
+                is_national_team=bool(r['is_national_team'])
+            )
+            for r in cursor.fetchall()
+        ]
+
+        # Calculate top clubs by duration (non-national teams)
+        from app.routers.players import calculate_club_duration_years
+        non_national_clubs = [c for c in clubs if not c.is_national_team]
+        club_durations = []
+        for club in non_national_clubs:
+            duration = calculate_club_duration_years(club.start_date, club.end_date)
+            club_durations.append((club.name, duration))
+        club_durations.sort(key=lambda x: x[1], reverse=True)
+        seen_clubs = set()
+        top_clubs = []
+        for club_name, _ in club_durations:
+            if club_name not in seen_clubs:
+                seen_clubs.add(club_name)
+                top_clubs.append(club_name)
+                if len(top_clubs) >= 3:
+                    break
+
+        # Calculate career span
+        career_span = None
+        if clubs:
+            start_years = []
+            end_years = []
+            has_active_club = False
+            for club in clubs:
+                if club.start_date:
+                    try:
+                        start_years.append(int(club.start_date[:4]))
+                    except (ValueError, TypeError):
+                        pass
+                if club.end_date:
+                    try:
+                        end_years.append(int(club.end_date[:4]))
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    has_active_club = True
+
+            if start_years:
+                earliest = min(start_years)
+                if has_active_club:
+                    career_span = f"{earliest}-present"
+                elif end_years:
+                    latest = max(end_years)
+                    career_span = f"{earliest}-{latest}"
 
         players.append(GuessedPlayerSummary(
             id=row['id'],
@@ -101,6 +166,8 @@ async def get_session(session_id: int):
             nationality=row['nationality'],
             position=row['position'],
             top_clubs=top_clubs,
+            clubs=clubs,
+            career_span=career_span,
             guessed_at=row['guessed_at']
         ))
 

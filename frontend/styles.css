@@ -557,6 +557,70 @@ header h1 {
     font-style: italic;
 }
 
+/* Clickable club/team links */
+.club-link,
+.card-link {
+    color: var(--primary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.club-link:hover,
+.card-link:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.club-link:focus-visible,
+.card-link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Card links (in player cards) */
+.player-card .card-link {
+    position: relative;
+    z-index: 1;
+}
+
+.player-card .card-link.current-club {
+    font-weight: 600;
+}
+
+/* Current team highlighting */
+.club-link.current-club {
+    font-weight: 600;
+}
+
+.club-history li.current-club {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.1) 0%, transparent 100%);
+    margin: 0 -0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    border-radius: 4px;
+}
+
+.current-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(37, 99, 235, 0.15);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* Top clubs list with clickable links */
+.top-clubs-list .club-link.current-club {
+    color: var(--primary);
+    font-weight: 600;
+}
+
 /* Empty state */
 .empty-state {
     text-align: center;
@@ -790,6 +854,128 @@ header h1 {
     margin-left: 0.5rem;
 }
 
+/* Recent clubs quick access */
+.recent-clubs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.recent-clubs.hidden {
+    display: none;
+}
+
+.recent-clubs:not(.hidden) {
+    animation: fadeIn 0.2s ease;
+}
+
+.recent-clubs-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-right: 0.25rem;
+}
+
+.recent-club-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-club-chip:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.recent-club-chip:focus {
+    outline: none;
+}
+
+.recent-club-chip:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.recent-club-chip:active {
+    transform: scale(0.97);
+}
+
+.recent-club-chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.recent-club-chip.active:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+/* Clear recent clubs button */
+.recent-clubs-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-left: 0.25rem;
+}
+
+.recent-clubs-clear:hover {
+    background: var(--error);
+    border-color: var(--error);
+    color: white;
+}
+
+.recent-clubs-clear:focus {
+    outline: none;
+}
+
+.recent-clubs-clear:focus-visible {
+    outline: 2px solid var(--error);
+    outline-offset: 2px;
+}
+
+/* Stagger animation for recent club chips */
+.recent-club-chip:nth-child(2) { animation: chipFadeIn 0.15s ease 0ms both; }
+.recent-club-chip:nth-child(3) { animation: chipFadeIn 0.15s ease 30ms both; }
+.recent-club-chip:nth-child(4) { animation: chipFadeIn 0.15s ease 60ms both; }
+.recent-club-chip:nth-child(5) { animation: chipFadeIn 0.15s ease 90ms both; }
+.recent-club-chip:nth-child(6) { animation: chipFadeIn 0.15s ease 120ms both; }
+
+@keyframes chipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Roster display */
 .roster-display {
     background: var(--card-bg);
@@ -1006,5 +1192,15 @@ header h1 {
     .roster-player {
         padding: 0.5rem;
         font-size: 0.8rem;
+    }
+
+    .recent-clubs {
+        gap: 0.375rem;
+    }
+
+    .recent-club-chip {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+        max-width: 150px;
     }
 }

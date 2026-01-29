@@ -127,20 +127,64 @@ async def get_club_roster(
 
     # Get players who were at this club during the season
     # A player was at the club if:
+    # - They have a valid start_date (not NULL, not corrupted)
     # - Their start_date year <= season_end (they joined before or during the season)
     # - Their end_date year >= season_start OR end_date is NULL (they left after the season started or are still there)
+    #
+    # Data quality heuristic: For players with NULL end_date, only include them if:
+    # - They started within the last 10 years (reasonable tenure assumption)
+    # - This prevents showing players from decades ago with missing departure data
+    #
+    # We use a subquery to get unique players and their most relevant stint dates.
+    max_tenure_years = 10  # Players without end_date must have started within this many years
+    oldest_valid_start = season_start - max_tenure_years
+
     cursor.execute("""
-        SELECT p.id, p.name, p.position,
-               CAST(SUBSTR(pc.start_date, 1, 4) AS INTEGER) as start_year,
-               CASE WHEN pc.end_date IS NULL THEN NULL
-                    ELSE CAST(SUBSTR(pc.end_date, 1, 4) AS INTEGER) END as end_year
-        FROM players p
-        JOIN player_clubs pc ON p.id = pc.player_id
-        WHERE pc.club_id = ?
-          AND (pc.start_date IS NULL OR CAST(SUBSTR(pc.start_date, 1, 4) AS INTEGER) <= ?)
-          AND (pc.end_date IS NULL OR CAST(SUBSTR(pc.end_date, 1, 4) AS INTEGER) >= ?)
+        WITH valid_stints AS (
+            SELECT
+                pc.player_id,
+                CAST(SUBSTR(pc.start_date, 1, 4) AS INTEGER) as start_year,
+                CASE
+                    WHEN pc.end_date IS NULL THEN NULL
+                    WHEN pc.end_date LIKE '%http%' THEN NULL
+                    WHEN LENGTH(pc.end_date) < 4 THEN NULL
+                    ELSE CAST(SUBSTR(pc.end_date, 1, 4) AS INTEGER)
+                END as end_year
+            FROM player_clubs pc
+            WHERE pc.club_id = ?
+              AND pc.start_date IS NOT NULL
+              AND pc.start_date NOT LIKE '%http%'
+              AND LENGTH(pc.start_date) >= 4
+              AND CAST(SUBSTR(pc.start_date, 1, 4) AS INTEGER) <= ?
+              AND (
+                  -- Has a valid end_date that's >= season_start
+                  (pc.end_date IS NOT NULL
+                   AND pc.end_date NOT LIKE '%http%'
+                   AND LENGTH(pc.end_date) >= 4
+                   AND CAST(SUBSTR(pc.end_date, 1, 4) AS INTEGER) >= ?)
+                  OR
+                  -- Has NULL/invalid end_date AND started within max_tenure_years
+                  ((pc.end_date IS NULL OR pc.end_date LIKE '%http%' OR LENGTH(pc.end_date) < 4)
+                   AND CAST(SUBSTR(pc.start_date, 1, 4) AS INTEGER) >= ?)
+              )
+        ),
+        best_stint AS (
+            SELECT
+                player_id,
+                MAX(start_year) as start_year,
+                -- For end_year, prefer NULL (still at club) over a date
+                MIN(COALESCE(end_year, 9999)) as end_year_raw
+            FROM valid_stints
+            GROUP BY player_id
+        )
+        SELECT
+            p.id, p.name, p.position,
+            bs.start_year,
+            CASE WHEN bs.end_year_raw = 9999 THEN NULL ELSE bs.end_year_raw END as end_year
+        FROM best_stint bs
+        JOIN players p ON bs.player_id = p.id
         ORDER BY p.name
-    """, (club_id, season_end, season_start))
+    """, (club_id, season_end, season_start, oldest_valid_start))
 
     player_rows = cursor.fetchall()
     conn.close()

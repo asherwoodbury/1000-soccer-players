@@ -14,10 +14,14 @@ const DEFAULT_SETTINGS = {
     showRosterLookup: true
 };
 
+// Maximum number of recent clubs to store
+const MAX_RECENT_CLUBS = 5;
+
 // State
 let sessionId = null;
 let guessedPlayers = [];
 let displaySettings = { ...DEFAULT_SETTINGS };
+let recentClubs = []; // Recently viewed clubs for quick access
 
 // Load settings from localStorage
 function loadSettings() {
@@ -34,6 +38,94 @@ function loadSettings() {
 // Save settings to localStorage
 function saveSettings() {
     localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+}
+
+// Load recent clubs from localStorage
+function loadRecentClubs() {
+    const stored = localStorage.getItem('recentClubs');
+    if (stored) {
+        try {
+            recentClubs = JSON.parse(stored);
+        } catch (e) {
+            recentClubs = [];
+        }
+    }
+}
+
+// Save recent clubs to localStorage
+function saveRecentClubs() {
+    localStorage.setItem('recentClubs', JSON.stringify(recentClubs));
+}
+
+// Add a club to the recent clubs list
+function addToRecentClubs(clubId, clubName) {
+    // Remove if already exists (to move it to front)
+    recentClubs = recentClubs.filter(c => c.id !== clubId);
+
+    // Add to front
+    recentClubs.unshift({ id: clubId, name: clubName });
+
+    // Keep only MAX_RECENT_CLUBS
+    if (recentClubs.length > MAX_RECENT_CLUBS) {
+        recentClubs = recentClubs.slice(0, MAX_RECENT_CLUBS);
+    }
+
+    saveRecentClubs();
+    renderRecentClubs();
+}
+
+// Render recent clubs as clickable chips
+function renderRecentClubs() {
+    if (recentClubs.length === 0) {
+        recentClubsContainer.classList.add('hidden');
+        return;
+    }
+
+    // Determine which club is currently active
+    const activeClubId = currentClub ? currentClub.id : null;
+
+    recentClubsContainer.innerHTML = `
+        <span class="recent-clubs-label">Recent:</span>
+        ${recentClubs.map(club => `
+            <button class="recent-club-chip${club.id === activeClubId ? ' active' : ''}" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}" aria-label="Load ${escapeHtml(club.name)} roster" title="${escapeHtml(club.name)}">
+                ${escapeHtml(club.name)}
+            </button>
+        `).join('')}
+        <button class="recent-clubs-clear" aria-label="Clear recent clubs" title="Clear recent clubs">&times;</button>
+    `;
+
+    // Add click handlers for chips
+    recentClubsContainer.querySelectorAll('.recent-club-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            selectClub(parseInt(chip.dataset.clubId), chip.dataset.clubName);
+        });
+    });
+
+    // Add click handler for clear button
+    recentClubsContainer.querySelector('.recent-clubs-clear').addEventListener('click', clearRecentClubs);
+
+    // Show the container (visibility controlled by search input focus)
+    updateRecentClubsVisibility();
+}
+
+// Clear all recent clubs
+function clearRecentClubs() {
+    recentClubs = [];
+    localStorage.removeItem('recentClubs');
+    recentClubsContainer.classList.add('hidden');
+    recentClubsContainer.innerHTML = '';
+}
+
+// Update recent clubs visibility based on search input state
+function updateRecentClubsVisibility() {
+    if (recentClubs.length === 0) {
+        recentClubsContainer.classList.add('hidden');
+        return;
+    }
+
+    // Always show recent clubs when there are any saved
+    // They provide quick navigation between frequently viewed teams
+    recentClubsContainer.classList.remove('hidden');
 }
 
 // DOM Elements
@@ -72,6 +164,7 @@ const rosterTabBtn = document.querySelector('.tab[data-tab="roster"]');
 // Roster lookup DOM Elements
 const clubSearchInput = document.getElementById('club-search-input');
 const clubSearchResults = document.getElementById('club-search-results');
+const recentClubsContainer = document.getElementById('recent-clubs');
 const rosterDisplay = document.getElementById('roster-display');
 const rosterEmpty = document.getElementById('roster-empty');
 const rosterClubName = document.getElementById('roster-club-name');
@@ -92,9 +185,11 @@ let highlightedResultIndex = -1;
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
+    loadRecentClubs();
     applySettingsToUI();
     await initSession();
     setupEventListeners();
+    renderRecentClubs();
 });
 
 // Apply current settings to the settings UI checkboxes
@@ -232,11 +327,15 @@ function setupEventListeners() {
     });
 
     // Club search
-    clubSearchInput.addEventListener('input', handleClubSearch);
+    clubSearchInput.addEventListener('input', () => {
+        handleClubSearch();
+        updateRecentClubsVisibility();
+    });
     clubSearchInput.addEventListener('focus', () => {
         if (clubSearchInput.value.length >= 2) {
             clubSearchResults.classList.remove('hidden');
         }
+        updateRecentClubsVisibility();
     });
     clubSearchInput.addEventListener('keydown', handleClubSearchKeydown);
 
@@ -328,6 +427,12 @@ async function handleGuess(e) {
             });
 
             updateUI(true);
+
+            // Refresh roster display if a club is currently loaded
+            // so the newly guessed player shows as revealed
+            if (currentClub) {
+                loadRoster();
+            }
         }
         playerInput.value = '';
 
@@ -490,10 +595,17 @@ function renderPlayersList(highlightNew = false) {
     playersList.innerHTML = filteredPlayers.map((player, index) => {
         const isNew = highlightNew && index === 0 && player.isNew;
 
-        // Build info line based on settings
+        // Determine current clubs (where end_date is null and not national team)
+        const currentClubNames = new Set(
+            (player.clubs || [])
+                .filter(c => !c.end_date && !c.is_national_team)
+                .map(c => c.name)
+        );
+
+        // Build info line based on settings (nationality is clickable)
         const infoParts = [];
         if (displaySettings.showNationality && player.nationality) {
-            infoParts.push(escapeHtml(player.nationality));
+            infoParts.push(`<a href="#" class="card-link nationality-link" data-nationality="${escapeHtml(player.nationality)}">${escapeHtml(player.nationality)}</a>`);
         }
         if (displaySettings.showPosition && player.position) {
             infoParts.push(escapeHtml(player.position));
@@ -503,10 +615,14 @@ function renderPlayersList(highlightNew = false) {
         }
         const infoLine = infoParts.join(' · ') || '';
 
-        // Build clubs line based on settings
-        const clubsLine = displaySettings.showTopClubs && player.top_clubs?.length
-            ? player.top_clubs.map(c => escapeHtml(c)).join(', ')
-            : '';
+        // Build clubs line based on settings (each club is clickable)
+        let clubsLine = '';
+        if (displaySettings.showTopClubs && player.top_clubs?.length) {
+            clubsLine = player.top_clubs.map(clubName => {
+                const isCurrent = currentClubNames.has(clubName);
+                return `<a href="#" class="card-link club-link${isCurrent ? ' current-club' : ''}" data-club="${escapeHtml(clubName)}">${escapeHtml(clubName)}</a>`;
+            }).join(', ');
+        }
 
         return `
         <div class="player-card${isNew ? ' new' : ''}" data-player-id="${player.id}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(player.name)}">
@@ -521,7 +637,24 @@ function renderPlayersList(highlightNew = false) {
         guessedPlayers[0].isNew = false;
     }
 
-    // Add click and keyboard handlers
+    // Add click handlers for club/nationality links in cards (stop propagation to prevent modal open)
+    document.querySelectorAll('.player-card .club-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigateToClubRoster(link.dataset.club);
+        });
+    });
+
+    document.querySelectorAll('.player-card .nationality-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigateToNationalTeam(link.dataset.nationality);
+        });
+    });
+
+    // Add click and keyboard handlers for opening modal (on card itself, not on links)
     document.querySelectorAll('.player-card').forEach(card => {
         const openModal = () => {
             const playerId = parseInt(card.dataset.playerId);
@@ -529,11 +662,19 @@ function renderPlayersList(highlightNew = false) {
             if (player) showPlayerModal(player);
         };
 
-        card.addEventListener('click', openModal);
+        card.addEventListener('click', (e) => {
+            // Only open modal if the click was not on a link
+            if (!e.target.closest('.card-link')) {
+                openModal();
+            }
+        });
         card.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                openModal();
+                // Only open modal if focus is on the card itself, not a link
+                if (!e.target.closest('.card-link')) {
+                    e.preventDefault();
+                    openModal();
+                }
             }
         });
     });
@@ -547,10 +688,19 @@ function showPlayerModal(player) {
 
     document.getElementById('modal-player-name').textContent = player.name;
 
-    // Nationality
+    // Nationality (clickable to view national team)
     const nationalityRow = document.getElementById('modal-nationality-row');
+    const nationalityEl = document.getElementById('modal-nationality');
     if (displaySettings.showNationality) {
-        document.getElementById('modal-nationality').textContent = player.nationality || 'Unknown';
+        if (player.nationality) {
+            nationalityEl.innerHTML = `<a href="#" class="club-link" data-nationality="${escapeHtml(player.nationality)}">${escapeHtml(player.nationality)}</a>`;
+            nationalityEl.querySelector('.club-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToNationalTeam(player.nationality);
+            });
+        } else {
+            nationalityEl.textContent = 'Unknown';
+        }
         nationalityRow.style.display = '';
     } else {
         nationalityRow.style.display = 'none';
@@ -574,16 +724,34 @@ function showPlayerModal(player) {
         careerSpanRow.style.display = 'none';
     }
 
-    // Top clubs
+    // Top clubs (clickable)
     const topClubsSection = document.getElementById('modal-top-clubs-section');
+    const topClubsEl = document.getElementById('modal-top-clubs');
     if (displaySettings.showTopClubs && player.top_clubs?.length) {
-        document.getElementById('modal-top-clubs').textContent = player.top_clubs.join(', ');
+        // Check which clubs are current (player still there)
+        const currentClubNames = new Set(
+            (player.clubs || [])
+                .filter(c => !c.end_date && !c.is_national_team)
+                .map(c => c.name)
+        );
+
+        topClubsEl.innerHTML = player.top_clubs.map(clubName => {
+            const isCurrent = currentClubNames.has(clubName);
+            return `<a href="#" class="club-link${isCurrent ? ' current-club' : ''}" data-club="${escapeHtml(clubName)}">${escapeHtml(clubName)}</a>`;
+        }).join(', ');
+
+        topClubsEl.querySelectorAll('.club-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToClubRoster(link.dataset.club);
+            });
+        });
         topClubsSection.style.display = '';
     } else {
         topClubsSection.style.display = 'none';
     }
 
-    // Full club history
+    // Full club history (clickable with current team highlighting)
     const clubsSection = document.getElementById('modal-clubs-section');
     const clubsList = document.getElementById('modal-clubs');
 
@@ -592,14 +760,30 @@ function showPlayerModal(player) {
             const startYear = club.start_date ? club.start_date.substring(0, 4) : '?';
             const endYear = club.end_date ? club.end_date.substring(0, 4) : 'Present';
             const isNational = club.is_national_team;
+            const isCurrent = !club.end_date;
+
+            const classes = [
+                isNational ? 'national-team' : '',
+                isCurrent ? 'current-club' : ''
+            ].filter(Boolean).join(' ');
 
             return `
-                <li class="${isNational ? 'national-team' : ''}">
-                    ${escapeHtml(club.name)}
+                <li class="${classes}">
+                    <a href="#" class="club-link" data-club="${escapeHtml(club.name)}">${escapeHtml(club.name)}</a>
                     <span class="club-dates">(${startYear} - ${endYear})</span>
+                    ${isCurrent ? '<span class="current-badge">Current</span>' : ''}
                 </li>
             `;
         }).join('');
+
+        // Add click handlers for club links
+        clubsList.querySelectorAll('.club-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToClubRoster(link.dataset.club);
+            });
+        });
+
         clubsSection.style.display = '';
     } else {
         clubsSection.style.display = 'none';
@@ -618,6 +802,71 @@ function closeModal() {
     if (lastFocusedElement) {
         lastFocusedElement.focus();
         lastFocusedElement = null;
+    }
+}
+
+// Navigate to a club's roster by searching for it by name
+async function navigateToClubRoster(clubName) {
+    try {
+        // Search for the club
+        const response = await fetch(
+            `${API_BASE}/clubs/search?query=${encodeURIComponent(clubName)}&limit=5`
+        );
+        const clubs = await response.json();
+
+        if (clubs.length === 0) {
+            showMessage(`Could not find "${clubName}" in database`, 'warning');
+            return;
+        }
+
+        // Find exact match or use first result
+        const exactMatch = clubs.find(c => c.name.toLowerCase() === clubName.toLowerCase());
+        const club = exactMatch || clubs[0];
+
+        // Close the modal and switch to roster tab
+        closeModal();
+        switchTab('roster');
+
+        // Select the club
+        await selectClub(club.id, club.name);
+
+    } catch (e) {
+        console.error('Error navigating to club:', e);
+        showMessage('Error loading club roster', 'error');
+    }
+}
+
+// Navigate to a national team roster by country name
+async function navigateToNationalTeam(nationality) {
+    // Search for the national team (try common naming patterns)
+    const searchTerms = [
+        `${nationality} national`,
+        `${nationality} men's national`,
+        `${nationality} national football team`
+    ];
+
+    try {
+        for (const term of searchTerms) {
+            const response = await fetch(
+                `${API_BASE}/clubs/search?query=${encodeURIComponent(term)}&limit=5`
+            );
+            const clubs = await response.json();
+
+            // Find a national team
+            const nationalTeam = clubs.find(c => c.is_national_team);
+            if (nationalTeam) {
+                closeModal();
+                switchTab('roster');
+                await selectClub(nationalTeam.id, nationalTeam.name);
+                return;
+            }
+        }
+
+        showMessage(`Could not find ${nationality} national team`, 'warning');
+
+    } catch (e) {
+        console.error('Error navigating to national team:', e);
+        showMessage('Error loading national team roster', 'error');
     }
 }
 
@@ -756,6 +1005,9 @@ async function selectClub(clubId, clubName) {
     currentClub = { id: clubId, name: clubName };
     clubSearchInput.value = clubName;
     clubSearchResults.classList.add('hidden');
+
+    // Add to recent clubs for quick access
+    addToRecentClubs(clubId, clubName);
 
     // Get year range for this club
     try {
