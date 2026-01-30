@@ -22,9 +22,96 @@ def normalize_name(name: str) -> str:
     return normalized
 
 
+def format_national_team_name(name: str) -> str:
+    """
+    Convert long national team names to short display format.
+
+    Examples:
+    - "Argentina men's national association football team" → "Argentina (M)"
+    - "Germany women's national football team" → "Germany (W)"
+    - "Brazil national under-20 football team" → "Brazil U20"
+    - "France national under-23 football team" → "France U23 (M)"
+    - "Spain women's national under-19 football team" → "Spain U19 (W)"
+    """
+    # Check if this looks like a national team name
+    if 'national' not in name.lower():
+        return name
+
+    # Determine gender
+    is_women = "women" in name.lower()
+    gender_suffix = " (W)" if is_women else " (M)"
+
+    # Check for youth age groups
+    youth_match = re.search(r'under-(\d+)', name.lower())
+    youth_suffix = ""
+    if youth_match:
+        youth_suffix = f" U{youth_match.group(1)}"
+
+    # Extract country name (everything before "men's", "women's", or "national")
+    # Try different patterns
+    country = None
+
+    # Pattern: "Country men's national..." or "Country women's national..."
+    match = re.match(r"^(.+?)\s+(?:men's|women's)\s+national", name, re.IGNORECASE)
+    if match:
+        country = match.group(1)
+    else:
+        # Pattern: "Country national under-XX..." or "Country national..."
+        match = re.match(r"^(.+?)\s+national", name, re.IGNORECASE)
+        if match:
+            country = match.group(1)
+
+    if not country:
+        return name
+
+    # Clean up country name
+    country = country.strip()
+
+    # Build short name
+    if youth_suffix:
+        return f"{country}{youth_suffix}{gender_suffix}"
+    else:
+        return f"{country}{gender_suffix}"
+
+
+def get_national_team_priority(name: str) -> int:
+    """
+    Return a priority score for sorting national teams.
+    Lower score = higher priority (appears first).
+
+    Priority order:
+    1. Senior men's teams (score 0)
+    2. Senior women's teams (score 1)
+    3. Youth teams by age descending (U23 before U21 before U20, etc.)
+    """
+    name_lower = name.lower()
+
+    # Check if this is a national team
+    if 'national' not in name_lower:
+        return 100  # Non-national teams go last
+
+    # Check for youth age group
+    youth_match = re.search(r'under-(\d+)', name_lower)
+    if youth_match:
+        age = int(youth_match.group(1))
+        # Youth teams get score 10-29 based on age (higher age = lower score = higher priority)
+        # U23 = 10+7 = 17, U21 = 10+9 = 19, U20 = 10+10 = 20, U19 = 10+11 = 21, U17 = 10+13 = 23
+        base_score = 10 + (30 - age)
+        # Women's youth teams slightly lower priority than men's
+        if "women" in name_lower:
+            base_score += 1
+        return base_score
+
+    # Senior teams
+    if "women" in name_lower:
+        return 1  # Senior women's
+    return 0  # Senior men's
+
+
 class ClubSearchResult(BaseModel):
     id: int
     name: str
+    display_name: str  # Short display name for national teams
     is_national_team: bool
 
 
@@ -38,7 +125,8 @@ class RosterPlayer(BaseModel):
 
 class RosterResponse(BaseModel):
     club_id: int
-    club_name: str
+    club_name: str  # Full name
+    display_name: str  # Short display name for national teams
     season: str
     players: list[RosterPlayer]
     total_count: int
@@ -51,14 +139,16 @@ async def search_clubs(
 ):
     """
     Search for clubs by name.
-    Returns clubs matching the search term, sorted by number of players (popularity).
+    Returns clubs matching the search term. National teams are sorted with
+    senior teams first (men's, then women's), followed by youth teams by age.
+    Non-national clubs are sorted by player count (popularity).
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     normalized = normalize_name(query)
 
-    # Search for clubs with players, ordered by player count (popularity)
+    # Search for clubs with players - fetch more than limit to allow for re-sorting
     cursor.execute("""
         SELECT c.id, c.name,
                EXISTS(SELECT 1 FROM player_clubs pc
@@ -70,18 +160,40 @@ async def search_clubs(
         GROUP BY c.id
         ORDER BY player_count DESC
         LIMIT ?
-    """, (f"%{normalized}%", limit))
+    """, (f"%{normalized}%", limit * 2))  # Fetch extra for re-sorting
 
     results = cursor.fetchall()
     conn.close()
 
+    # Convert to result objects with display names
+    club_results = []
+    for row in results:
+        name = row['name']
+        is_national = bool(row['is_national_team'])
+        display_name = format_national_team_name(name) if is_national else name
+
+        club_results.append({
+            'id': row['id'],
+            'name': name,
+            'display_name': display_name,
+            'is_national_team': is_national,
+            'player_count': row['player_count'],
+            'priority': get_national_team_priority(name) if is_national else 50
+        })
+
+    # Sort: national teams by priority first, then non-national by player count
+    # This puts senior national teams at top when searching for country names
+    club_results.sort(key=lambda x: (x['priority'], -x['player_count']))
+
+    # Return limited results
     return [
         ClubSearchResult(
-            id=row['id'],
-            name=row['name'],
-            is_national_team=bool(row['is_national_team'])
+            id=r['id'],
+            name=r['name'],
+            display_name=r['display_name'],
+            is_national_team=r['is_national_team']
         )
-        for row in results
+        for r in club_results[:limit]
     ]
 
 
@@ -112,6 +224,7 @@ async def get_club_roster(
         return RosterResponse(
             club_id=club_id,
             club_name="Unknown Club",
+            display_name="Unknown Club",
             season=season,
             players=[],
             total_count=0
@@ -200,9 +313,14 @@ async def get_club_roster(
         for row in player_rows
     ]
 
+    # Format display name (short version for national teams)
+    club_name = club_row['name']
+    display_name = format_national_team_name(club_name)
+
     return RosterResponse(
         club_id=club_row['id'],
-        club_name=club_row['name'],
+        club_name=club_name,
+        display_name=display_name,
         season=f"{season_start}/{str(season_end)[-2:]}",
         players=players,
         total_count=len(players)

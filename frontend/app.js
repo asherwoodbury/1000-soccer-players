@@ -58,12 +58,12 @@ function saveRecentClubs() {
 }
 
 // Add a club to the recent clubs list
-function addToRecentClubs(clubId, clubName) {
+function addToRecentClubs(clubId, clubName, displayName) {
     // Remove if already exists (to move it to front)
     recentClubs = recentClubs.filter(c => c.id !== clubId);
 
-    // Add to front
-    recentClubs.unshift({ id: clubId, name: clubName });
+    // Add to front (store both name for searching and displayName for display)
+    recentClubs.unshift({ id: clubId, name: clubName, displayName: displayName || clubName });
 
     // Keep only MAX_RECENT_CLUBS
     if (recentClubs.length > MAX_RECENT_CLUBS) {
@@ -86,11 +86,13 @@ function renderRecentClubs() {
 
     recentClubsContainer.innerHTML = `
         <span class="recent-clubs-label">Recent:</span>
-        ${recentClubs.map(club => `
-            <button class="recent-club-chip${club.id === activeClubId ? ' active' : ''}" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}" aria-label="Load ${escapeHtml(club.name)} roster" title="${escapeHtml(club.name)}">
-                ${escapeHtml(club.name)}
+        ${recentClubs.map(club => {
+            const display = club.displayName || club.name;
+            return `
+            <button class="recent-club-chip${club.id === activeClubId ? ' active' : ''}" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}" aria-label="Load ${escapeHtml(display)} roster" title="${escapeHtml(display)}">
+                ${escapeHtml(display)}
             </button>
-        `).join('')}
+        `}).join('')}
         <button class="recent-clubs-clear" aria-label="Clear recent clubs" title="Clear recent clubs">&times;</button>
     `;
 
@@ -596,10 +598,11 @@ function renderPlayersList(highlightNew = false) {
         const isNew = highlightNew && index === 0 && player.isNew;
 
         // Determine current clubs (where end_date is null and not national team)
+        // Use display_name to match against top_clubs which also uses display names
         const currentClubNames = new Set(
             (player.clubs || [])
                 .filter(c => !c.end_date && !c.is_national_team)
-                .map(c => c.name)
+                .map(c => c.display_name || c.name)
         );
 
         // Build info line based on settings (nationality is clickable)
@@ -729,10 +732,11 @@ function showPlayerModal(player) {
     const topClubsEl = document.getElementById('modal-top-clubs');
     if (displaySettings.showTopClubs && player.top_clubs?.length) {
         // Check which clubs are current (player still there)
+        // Use display_name to match against top_clubs which also uses display names
         const currentClubNames = new Set(
             (player.clubs || [])
                 .filter(c => !c.end_date && !c.is_national_team)
-                .map(c => c.name)
+                .map(c => c.display_name || c.name)
         );
 
         topClubsEl.innerHTML = player.top_clubs.map(clubName => {
@@ -761,6 +765,7 @@ function showPlayerModal(player) {
             const endYear = club.end_date ? club.end_date.substring(0, 4) : 'Present';
             const isNational = club.is_national_team;
             const isCurrent = !club.end_date;
+            const displayName = club.display_name || club.name;
 
             const classes = [
                 isNational ? 'national-team' : '',
@@ -769,7 +774,7 @@ function showPlayerModal(player) {
 
             return `
                 <li class="${classes}">
-                    <a href="#" class="club-link" data-club="${escapeHtml(club.name)}">${escapeHtml(club.name)}</a>
+                    <a href="#" class="club-link" data-club="${escapeHtml(club.name)}">${escapeHtml(displayName)}</a>
                     <span class="club-dates">(${startYear} - ${endYear})</span>
                     ${isCurrent ? '<span class="current-badge">Current</span>' : ''}
                 </li>
@@ -828,7 +833,7 @@ async function navigateToClubRoster(clubName) {
         switchTab('roster');
 
         // Select the club
-        await selectClub(club.id, club.name);
+        await selectClub(club.id, club.name, club.display_name);
 
     } catch (e) {
         console.error('Error navigating to club:', e);
@@ -852,12 +857,12 @@ async function navigateToNationalTeam(nationality) {
             );
             const clubs = await response.json();
 
-            // Find a national team
+            // Find a national team (prioritized: senior teams first thanks to backend)
             const nationalTeam = clubs.find(c => c.is_national_team);
             if (nationalTeam) {
                 closeModal();
                 switchTab('roster');
-                await selectClub(nationalTeam.id, nationalTeam.name);
+                await selectClub(nationalTeam.id, nationalTeam.name, nationalTeam.display_name);
                 return;
             }
         }
@@ -939,8 +944,8 @@ function handleClubSearch() {
                 `;
             } else {
                 clubSearchResults.innerHTML = clubs.map((club, index) => `
-                    <div class="club-result" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}" data-index="${index}">
-                        <span class="club-result-name">${escapeHtml(club.name)}</span>
+                    <div class="club-result" data-club-id="${club.id}" data-club-name="${escapeHtml(club.name)}" data-display-name="${escapeHtml(club.display_name)}" data-index="${index}">
+                        <span class="club-result-name">${escapeHtml(club.display_name)}</span>
                         ${club.is_national_team ? '<span class="club-result-badge">National Team</span>' : ''}
                     </div>
                 `).join('');
@@ -950,7 +955,8 @@ function handleClubSearch() {
                     result.addEventListener('click', () => {
                         selectClub(
                             parseInt(result.dataset.clubId),
-                            result.dataset.clubName
+                            result.dataset.clubName,
+                            result.dataset.displayName
                         );
                     });
                 });
@@ -982,7 +988,8 @@ function handleClubSearchKeydown(e) {
         if (selected) {
             selectClub(
                 parseInt(selected.dataset.clubId),
-                selected.dataset.clubName
+                selected.dataset.clubName,
+                selected.dataset.displayName
             );
         }
     } else if (e.key === 'Escape') {
@@ -1001,13 +1008,13 @@ function updateHighlightedResult(results) {
 }
 
 // Select a club and load its roster
-async function selectClub(clubId, clubName) {
-    currentClub = { id: clubId, name: clubName };
-    clubSearchInput.value = clubName;
+async function selectClub(clubId, clubName, displayName) {
+    currentClub = { id: clubId, name: clubName, displayName: displayName || clubName };
+    clubSearchInput.value = displayName || clubName;
     clubSearchResults.classList.add('hidden');
 
     // Add to recent clubs for quick access
-    addToRecentClubs(clubId, clubName);
+    addToRecentClubs(clubId, clubName, displayName);
 
     // Get year range for this club
     try {
@@ -1040,8 +1047,8 @@ async function loadRoster() {
         );
         const data = await response.json();
 
-        // Update UI
-        rosterClubName.textContent = data.club_name;
+        // Update UI - use display_name for national teams
+        rosterClubName.textContent = data.display_name || data.club_name;
         rosterSeason.textContent = data.season;
         rosterTotalCount.textContent = data.total_count;
 

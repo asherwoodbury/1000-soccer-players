@@ -10,6 +10,7 @@ import re
 from datetime import datetime
 
 from app.models.database import get_db_connection, fts_search, fts_search_fuzzy
+from app.routers.clubs import format_national_team_name
 
 
 def calculate_club_duration_years(start_date: Optional[str], end_date: Optional[str]) -> float:
@@ -117,6 +118,7 @@ def normalize_name(name: str) -> str:
 
 class ClubHistory(BaseModel):
     name: str
+    display_name: str  # Short display name for national teams
     start_date: Optional[str]
     end_date: Optional[str]
     is_national_team: bool
@@ -249,6 +251,7 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
     clubs = [
         ClubHistory(
             name=row['name'],
+            display_name=format_national_team_name(row['name']) if row['is_national_team'] else row['name'],
             start_date=row['start_date'],
             end_date=row['end_date'],
             is_national_team=bool(row['is_national_team'])
@@ -263,7 +266,8 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
     club_durations = []
     for club in non_national_clubs:
         duration = calculate_club_duration_years(club.start_date, club.end_date)
-        club_durations.append((club.name, duration))
+        # Use display_name for the top_clubs list
+        club_durations.append((club.display_name, duration))
 
     # Sort by duration descending, take top 3 unique club names
     club_durations.sort(key=lambda x: x[1], reverse=True)

@@ -8,6 +8,7 @@ from typing import Optional
 from datetime import datetime
 
 from app.models.database import get_db_connection
+from app.routers.clubs import format_national_team_name
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ class SessionResponse(BaseModel):
 
 class ClubHistory(BaseModel):
     name: str
+    display_name: str  # Short display name for national teams
     start_date: Optional[str]
     end_date: Optional[str]
     is_national_team: bool
@@ -108,6 +110,7 @@ async def get_session(session_id: int):
         clubs = [
             ClubHistory(
                 name=r['name'],
+                display_name=format_national_team_name(r['name']) if r['is_national_team'] else r['name'],
                 start_date=r['start_date'],
                 end_date=r['end_date'],
                 is_national_team=bool(r['is_national_team'])
