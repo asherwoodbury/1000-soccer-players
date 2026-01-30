@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-01-27
+Last updated: 2026-01-29 14:32
 
 ## Category Index
 
@@ -17,7 +17,7 @@ Last updated: 2026-01-27
 | Smart Name Matching | COMPLETED |
 | Recently Viewed Clubs Quick Access | COMPLETED |
 | Clickable Team Links in Player Profiles | COMPLETED |
-| Shorter National Team Names | HIGH |
+| Shorter National Team Names | COMPLETED |
 | Dark Mode | HIGH |
 | Progress Visualization | MEDIUM |
 | Player Statistics Dashboard | LOW |
@@ -29,13 +29,10 @@ Last updated: 2026-01-27
 ### Bugs (BUG)
 | Item | Priority |
 |------|----------|
-| Team Roster Shows Too Many Players | CRITICAL |
-| Roster Doesn't Update When Guessing Player | CRITICAL |
 
 ### Data (DATA)
 | Item | Priority |
 |------|----------|
-| Prioritize Senior National Teams | HIGH |
 
 ### Game Features (GAME)
 | Item | Priority |
@@ -75,29 +72,6 @@ Last updated: 2026-01-27
 ## To Do
 
 ### Critical Priority
-
-- **[BUG] Team Roster Shows Too Many Players**
-  > Team rosters are showing far too many players (Dortmund: 79, Juventus: 200+). The roster query is likely including all players who ever played for the team, not just those active in the selected season. Need to fix the season filtering logic in the roster endpoint.
-  > Added: 2026-01-27
-
-- **[BUG] Roster Doesn't Update When Guessing Player From Current Team**
-  > When viewing a team's roster and guessing a player from that team, the roster doesn't update to show the player as guessed until navigating away and back (changing season). The roster should refresh in real-time when a guess is made.
-  > Added: 2026-01-27
-
-### High Priority
-
-- **[UX] Shorter National Team Names**
-  > Rename national teams to use shorter, more readable format:
-  > - "Argentina men's national association football team" → "Argentina (M)"
-  > - "Germany women's national football team" → "Germany (W)"
-  > - "Brazil national under-20 football team" → "Brazil U20"
-  > - "France national under-23 football team" → "France U23"
-  > This affects display in player profiles, roster headers, and search results.
-  > Added: 2026-01-27
-
-- **[DATA] Prioritize Senior National Teams**
-  > When searching for national teams, prioritize top men's and women's senior teams over youth teams (U17, U19, U20, U23). Currently searching "Argentina" might return youth teams first. Senior teams should appear at top of search results and be the default when clicking a nationality link.
-  > Added: 2026-01-27
 
 - **[PERF] Database Query Optimization**
   > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
@@ -392,3 +366,24 @@ Last updated: 2026-01-27
   > Creates seamless navigation between player profiles and team rosters for exploration.
   > Key files: `frontend/app.js` (navigateToClubRoster, navigateToNationalTeam), `frontend/styles.css` (.club-link, .current-club)
   > Completed: 2026-01-27
+
+- **[BUG] Team Roster Shows Too Many Players**
+  > Team rosters are showing far too many players (Dortmund: 79, Juventus: 200+). Fixed by filtering corrupted dates and adding tenure heuristic to properly filter players by season. The roster query now correctly includes only players active in the selected season.
+  > Completed: 2026-01-29
+
+- **[BUG] Roster Doesn't Update When Guessing Player From Current Team**
+  > When viewing a team's roster and guessing a player from that team, the roster now updates in real-time. Fixed by calling loadRoster() after a successful guess to refresh the roster display with updated player status.
+  > Completed: 2026-01-29
+
+- **[UX] Shorter National Team Names**
+  > Implemented format_national_team_name() function to rename national teams to shorter, more readable format:
+  > - "Argentina men's national association football team" → "Argentina (M)"
+  > - "Germany women's national football team" → "Germany (W)"
+  > - "Brazil national under-20 football team" → "Brazil U20"
+  > - "France national under-23 football team" → "France U23"
+  > Affects display in player profiles, roster headers, and search results throughout the UI.
+  > Completed: 2026-01-29
+
+- **[DATA] Prioritize Senior National Teams**
+  > Implemented get_national_team_priority() function to prioritize top men's and women's senior teams over youth teams in search results. Senior national teams now appear at the top when searching and are the default when clicking a nationality link, improving user experience when exploring teams by country.
+  > Completed: 2026-01-29

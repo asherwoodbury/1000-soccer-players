@@ -2,7 +2,7 @@
 Player lookup and search endpoints.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from typing import Optional
 import unicodedata

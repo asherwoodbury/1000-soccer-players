@@ -27,6 +27,8 @@ env/
 .venv
 
 # Database
+*.db
+*.db-journal
 backend/data/*.db
 backend/data/*.db-journal
 
