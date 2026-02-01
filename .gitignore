@@ -55,3 +55,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Xcode user data
+*.xcuserstate
+xcuserdata/

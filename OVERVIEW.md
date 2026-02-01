@@ -2,17 +2,21 @@
 
 ## Project Overview
 
-**1000 Soccer Players** is a web-based guessing game where users try to name as many soccer players as possible from memory. When a player is correctly guessed, the app displays their nationality, position, and complete club history. Users can filter their guessed players by club or nationality to help recall additional players.
+**1000 Soccer Players** is a guessing game where users try to name as many soccer players as possible from memory. When a player is correctly guessed, the app displays their nationality, position, and complete club history. Users can filter their guessed players by club or nationality to help recall additional players.
 
-The player database is populated from Wikidata using SPARQL queries, covering players from top European leagues (Premier League, La Liga, Bundesliga, Serie A, Ligue 1) and women's leagues.
+The game is available as:
+- **Web App**: Vanilla JavaScript SPA with FastAPI backend
+- **iOS App**: Native SwiftUI app with full offline capability
+
+The player database (47k+ players) is populated from Wikidata using SPARQL queries, covering players from top European leagues (Premier League, La Liga, Bundesliga, Serie A, Ligue 1) and women's leagues.
 
 ## Architecture
 
-### Core Components
+### Web App Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Frontend                           │
+│                   Web Frontend                          │
 │  Vanilla JavaScript SPA (index.html, app.js, styles.css)│
 │  - Session ID stored in localStorage                    │
 │  - Player data cached in memory                         │
@@ -22,19 +26,40 @@ The player database is populated from Wikidata using SPARQL queries, covering pl
 │                      Backend                            │
 │  FastAPI Application (app/main.py)                      │
 │  ├── Players Router (routers/players.py)                │
-│  │   - Player lookup with fuzzy name matching           │
+│  │   - Player lookup with FTS5 fuzzy matching           │
 │  │   - Database statistics                              │
-│  └── Sessions Router (routers/sessions.py)              │
-│      - Session creation and retrieval                   │
-│      - Guess recording                                  │
-│      - Filtering by club/nationality                    │
+│  ├── Sessions Router (routers/sessions.py)              │
+│  │   - Session creation and retrieval                   │
+│  │   - Guess recording, filtering                       │
+│  └── Clubs Router (routers/clubs.py)                    │
+│      - Club search and roster queries                   │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────┐
 │                    Data Layer                           │
 │  SQLite Database (backend/data/players.db)              │
-│  - Initialized via models/database.py                   │
+│  - FTS5 full-text search index                          │
 │  - Populated via scripts/extract_wikidata.py            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### iOS App Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    iOS App                              │
+│  SwiftUI (iOS 17+) with MVVM architecture               │
+│  ├── Views: ContentView, GameTabView, RosterTabView     │
+│  ├── ViewModels: GameViewModel, RosterViewModel         │
+│  └── Services: DatabaseManager, PlayerRepository        │
+└─────────────────────┬───────────────────────────────────┘
+                      │ GRDB.swift
+┌─────────────────────▼───────────────────────────────────┐
+│                 Bundled Database                        │
+│  SQLite (players.db ~48MB, ~20MB compressed in IPA)     │
+│  - Copied to Documents on first launch                  │
+│  - Full offline capability                              │
+│  - Same schema as web backend                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -102,7 +127,9 @@ The player database is populated from Wikidata using SPARQL queries, covering pl
 - `idx_players_normalized_name` - Fast name lookups
 - `idx_players_name` - Display name searches
 - `idx_player_clubs_player` - Club history queries
+- `idx_player_clubs_club` - Roster queries
 - `idx_guessed_players_session` - Session filtering
+- `players_fts` - FTS5 virtual table for full-text search with unicode61 tokenizer
 
 ## API Endpoints
 
@@ -112,7 +139,7 @@ Base URL: `http://localhost:8000/api`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/players/lookup?name={name}` | Look up player by name. Returns player data or ambiguity message. |
+| GET | `/players/lookup?name={name}` | Look up player by name with FTS5 fuzzy matching. Returns player data or ambiguity message. |
 | GET | `/players/stats` | Get database statistics (total players, top nationalities, positions) |
 
 ### Sessions
@@ -125,20 +152,38 @@ Base URL: `http://localhost:8000/api`
 | GET | `/sessions/{id}/players/by-club?club_name={name}` | Filter guessed players by club |
 | GET | `/sessions/{id}/players/by-nationality?nationality={country}` | Filter guessed players by nationality |
 
+### Clubs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/clubs/search?query={name}` | Search clubs by name. National teams sorted by priority. |
+| GET | `/clubs/{id}/roster?season={year}` | Get club roster for a season (e.g., 2023 for 2023/24). |
+| GET | `/clubs/{id}/years` | Get min/max years the club has player data for. |
+
 Auto-generated API docs available at `http://localhost:8000/docs` when backend is running.
 
 ## Technology Stack
 
+### Web App
 | Component | Technology |
 |-----------|------------|
 | Backend Framework | FastAPI 0.109+ |
 | ASGI Server | Uvicorn 0.27+ |
 | Data Validation | Pydantic 2.0+ |
-| Database | SQLite 3 |
+| Database | SQLite 3 with FTS5 |
 | HTTP Client | Requests 2.31+ |
 | Frontend | Vanilla JavaScript (ES6+) |
 | Styling | CSS3 with CSS variables |
 | Data Source | Wikidata SPARQL API |
+
+### iOS App
+| Component | Technology |
+|-----------|------------|
+| UI Framework | SwiftUI (iOS 17+) |
+| Database | GRDB.swift 6.24+ |
+| Architecture | MVVM |
+| Language | Swift 5.9+ |
+| IDE | Xcode 15+ |
 
 ## Project Structure
 
@@ -148,22 +193,41 @@ Auto-generated API docs available at `http://localhost:8000/docs` when backend i
 │   ├── app/
 │   │   ├── main.py              # FastAPI app, CORS config, router registration
 │   │   ├── models/
-│   │   │   └── database.py      # Schema definition, connection management
+│   │   │   └── database.py      # Schema definition, FTS5 setup
+│   │   ├── services/
+│   │   │   └── fuzzy_matching.py # Levenshtein distance, phonetic matching
 │   │   └── routers/
-│   │       ├── players.py       # Player lookup and stats endpoints
-│   │       └── sessions.py      # Session management endpoints
+│   │       ├── players.py       # Player lookup with fuzzy matching
+│   │       ├── sessions.py      # Session management endpoints
+│   │       └── clubs.py         # Club search and roster endpoints
 │   ├── data/
 │   │   └── players.db           # SQLite database (generated)
 │   ├── scripts/
 │   │   ├── extract_sample.py    # Extract 20 test players
-│   │   └── extract_wikidata.py  # Full extraction (47k+ players)
+│   │   ├── extract_wikidata.py  # Full extraction (47k+ players)
+│   │   └── fetch_club_histories.py # Batch fetch club histories
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html               # Single-page app structure
 │   ├── app.js                   # Application logic, API calls, state management
 │   └── styles.css               # Responsive mobile-first styling
-├── run.sh                       # Start both servers
+├── SoccerPlayers/               # iOS App
+│   ├── SoccerPlayers.xcodeproj  # Xcode project
+│   ├── Package.swift            # SPM dependencies (GRDB.swift)
+│   └── SoccerPlayers/
+│       ├── SoccerPlayersApp.swift
+│       ├── Models/              # GRDB data models
+│       ├── Services/
+│       │   ├── Database/        # DatabaseManager, Repositories
+│       │   └── Search/          # NameNormalizer, FuzzyMatcher
+│       ├── ViewModels/          # GameViewModel, RosterViewModel
+│       ├── Views/               # SwiftUI views (Main, Players, Roster, Settings)
+│       ├── Utilities/           # Constants, NationalTeamFormatter
+│       └── Resources/
+│           └── players.db       # Bundled database (~48MB)
+├── run.sh                       # Start both servers (web)
 ├── CLAUDE.md                    # Claude Code guidance
+├── BACKLOG.md                   # Feature backlog
 └── OVERVIEW.md                  # This file
 ```
 
@@ -254,10 +318,14 @@ No environment variables or external configuration required. The SQLite database
 
 3. **Hint System**: Show team rosters with blanks for unguessed players. Toggle difficulty by hiding/showing positions, years, etc.
 
-4. **Native iOS App**: The current architecture (REST API + separate frontend) is designed to support a future React Native mobile app.
+4. **User Accounts**: Add authentication to persist sessions across devices and track lifetime statistics.
 
-5. **User Accounts**: Add authentication to persist sessions across devices and track lifetime statistics.
+5. **Expanded Leagues**: Add support for Portuguese, Dutch, Turkish, and other leagues. Women's leagues need better Wikidata coverage.
 
-6. **Expanded Leagues**: Add support for Portuguese, Dutch, Turkish, and other leagues. Women's leagues need better Wikidata coverage.
+6. **Android App**: Port the iOS app to Android using Kotlin/Jetpack Compose, reusing the same SQLite database.
 
-7. **Full-Text Search**: Consider SQLite FTS5 for better fuzzy matching on misspelled names.
+## Completed Features
+
+- **FTS5 Full-Text Search**: Implemented in both web backend and iOS app for typo-tolerant fuzzy matching (e.g., "Christiano" → "Cristiano Ronaldo").
+
+- **Native iOS App**: Full SwiftUI implementation with offline capability, bundling the complete 47k+ player database (~48MB).
