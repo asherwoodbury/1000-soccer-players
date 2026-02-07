@@ -11,7 +11,8 @@ const DEFAULT_SETTINGS = {
     showCareerSpan: true,
     showTopClubs: true,
     showFullHistory: true,
-    showRosterLookup: true
+    showRosterLookup: true,
+    theme: 'system' // 'system', 'light', or 'dark'
 };
 
 // Maximum number of recent clubs to store
@@ -38,6 +39,33 @@ function loadSettings() {
 // Save settings to localStorage
 function saveSettings() {
     localStorage.setItem('displaySettings', JSON.stringify(displaySettings));
+}
+
+// Apply theme based on current setting
+function applyTheme() {
+    const theme = displaySettings.theme || 'system';
+    if (theme === 'system') {
+        document.documentElement.removeAttribute('data-theme');
+    } else {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+    updateThemeButtons();
+}
+
+// Update theme button states
+function updateThemeButtons() {
+    const theme = displaySettings.theme || 'system';
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        const isPressed = btn.dataset.theme === theme;
+        btn.setAttribute('aria-pressed', isPressed);
+    });
+}
+
+// Set theme and save
+function setTheme(theme) {
+    displaySettings.theme = theme;
+    saveSettings();
+    applyTheme();
 }
 
 // Load recent clubs from localStorage
@@ -188,6 +216,7 @@ let highlightedResultIndex = -1;
 document.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
     loadRecentClubs();
+    applyTheme(); // Apply theme immediately to prevent flash
     applySettingsToUI();
     await initSession();
     setupEventListeners();
@@ -204,6 +233,7 @@ function applySettingsToUI() {
     settingCheckboxes.rosterLookup.checked = displaySettings.showRosterLookup;
     updateFullHistoryState();
     updateRosterTabVisibility();
+    updateThemeButtons();
 }
 
 // Update roster tab visibility based on settings
@@ -319,6 +349,15 @@ function setupEventListeners() {
         displaySettings.showRosterLookup = e.target.checked;
         updateRosterTabVisibility();
         saveSettings();
+    });
+
+    // Theme buttons
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setTheme(btn.dataset.theme);
+        });
     });
 
     // Tabs
