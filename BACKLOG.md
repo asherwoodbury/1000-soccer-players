@@ -9,8 +9,8 @@ Last updated: 2026-02-07
 ### Performance (PERF)
 | Item | Priority |
 |------|----------|
-| Database Query Optimization | HIGH |
-| Frontend Caching Strategy | HIGH |
+| Database Query Optimization | LOW |
+| Frontend Caching Strategy | LOW |
 | Full-Text Search (FTS5) | COMPLETED |
 
 ### UX Improvements (UX)
@@ -21,14 +21,10 @@ Last updated: 2026-02-07
 | Clickable Team Links in Player Profiles | COMPLETED |
 | Shorter National Team Names | COMPLETED |
 | Dark Mode | COMPLETED |
-| Clean Up Position Categories | MEDIUM |
-| Fix Year Formatting in Roster Display | MEDIUM |
-| Progress Visualization | MEDIUM |
-| Player Statistics Dashboard | LOW |
+| Clean Up Position Categories | HIGH |
+| Fix Year Formatting in Roster Display | HIGH |
 | Player Photos & Media | MEDIUM |
-| Enhanced Empty State | MEDIUM |
 | Mobile Touch Improvements | MEDIUM |
-| Filter Roster by Guessed/Unguessed | LOW |
 
 ### Bugs (BUG)
 | Item | Priority |
@@ -45,11 +41,9 @@ Last updated: 2026-02-07
 | Player Info Display Settings | COMPLETED |
 | Team Roster Lookup | COMPLETED |
 | Filter Guessed Players | COMPLETED |
-| Expanded Leagues & National Teams | HIGH |
-| Category Progress Indicators | MEDIUM |
-| Same Team Indicator | MEDIUM |
+| Expanded Leagues & National Teams | MEDIUM |
 | Different Game Modes | LOW |
-| Gamification Features | MEDIUM |
+| Gamification Features | LOW |
 | Additional Sports | MEDIUM |
 
 ### Meta Features (META)
@@ -57,17 +51,17 @@ Last updated: 2026-02-07
 |------|----------|
 | Native iOS App | COMPLETED |
 | Multiplayer Mode | MEDIUM |
-| Session Persistence Across Tabs | MEDIUM |
-| User Accounts & Authentication | MEDIUM |
-| Session Management UI | MEDIUM |
-| Competitive Mode | MEDIUM |
+| Session Persistence Across Tabs | LOW |
+| User Accounts & Authentication | LOW |
+| Session Management UI | LOW |
+| Competitive Mode | LOW |
 | Social Sharing | MEDIUM |
 
 ### Other (OTHER)
 | Item | Priority |
 |------|----------|
 | API Documentation Improvements | LOW |
-| Automated Test Suite | MEDIUM |
+| Automated Test Suite | LOW |
 | Rate Limiting & Abuse Prevention | MEDIUM |
 | Session ID Security | MEDIUM |
 | Docker Containerization | MEDIUM |
@@ -91,19 +85,7 @@ Last updated: 2026-02-07
   > **Affected areas:** Player profiles, team rosters, "current team" indicators
   > Added: 2026-01-29
 
-- **[PERF] Database Query Optimization**
-  > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
-  > Added: 2026-01-19
-
-- **[PERF] Frontend Caching Strategy**
-  > Implement aggressive caching of player lookups to reduce API calls. Use IndexedDB for persistent cache, LRU cache in memory for current session. Add cache invalidation strategy when database is updated.
-  > Added: 2026-01-19
-
-- **[GAME] Expanded Leagues & National Teams**
-  > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Also prioritize women's leagues and women's national teams with better Wikidata coverage.
-  > Added: 2026-01-19 | Updated: 2026-01-27
-
-### Medium Priority
+### High Priority
 
 - **[UX] Clean Up Position Categories**
   > Standardize position names throughout the Rosters page to reduce redundancy and confusion. Changes needed:
@@ -118,62 +100,14 @@ Last updated: 2026-02-07
   > Remove comma separators from year ranges in the Rosters page. Currently displays "2,024/25" but should display "2024/25". Affects both web and iOS apps throughout season year display.
   > Added: 2026-02-01
 
-- **[UX] Season Jumping in Roster Navigation**
-  > Replace or augment prev/next buttons in Team Roster with dropdown or direct input for quick navigation to historical seasons. Consider adding decade jump buttons as optional feature for rapid navigation across large date ranges.
-  > Reduces friction when exploring team histories across many seasons.
-  > Added: 2026-01-26 | Source: UX Review
+### Medium Priority
 
-- **[GAME] Category Progress Indicators**
-  > Show completion percentages by category to motivate collection and reveal knowledge gaps. Example: "German players: 47/312 (15%)", "Goalkeepers: 23/89 (26%)".
-  >
-  > **Needs refinement:** Determine the right categories to track. Candidates include:
-  > - By nationality (top 10-20 countries?)
-  > - By position (4 main positions)
-  > - By league (top 5 leagues + women's)
-  > - By decade (1990s, 2000s, 2010s, 2020s)
-  > - By club (major clubs only?)
-  >
-  > Should be toggleable - some users may find this motivating, others overwhelming.
-  > Added: 2026-01-25 | Status: Needs design refinement
-
-- **[GAME] Same Team Indicator**
-  > When a player is guessed, optionally show how many players from their notable teams have been guessed. Example: "You've now guessed 3/5 players from 2015 Barcelona" or "4 players from Germany national team."
-  >
-  > Creates mini collection goals and encourages users to complete team rosters. Should be toggleable in Settings.
-  >
-  > **Needs refinement:** Determine which teams to highlight (all clubs? just notable ones? national teams?), and how to calculate roster sizes.
-  > Added: 2026-01-25 | Status: Needs design refinement
+- **[GAME] Expanded Leagues & National Teams**
+  > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Also prioritize women's leagues and women's national teams with better Wikidata coverage.
+  > Added: 2026-01-19 | Updated: 2026-01-27
 
 - **[META] Multiplayer Mode**
   > Allow multiple users to join the same session and guess in parallel. Implement real-time or near-real-time progress synchronization so players can see each other's guesses, player counts, and session leaderboards. Will require WebSocket support or polling mechanism for live updates.
-  > Added: 2026-01-19
-
-- **[META] Session Persistence Across Tabs**
-  > Sessions should persist when users open multiple tabs. Current implementation may lose session state or create duplicate sessions. Test with multiple browser tabs and implement session ID sharing mechanism.
-  > Added: 2026-01-19
-
-- **[META] User Accounts & Authentication**
-  > Implement user registration, login, and session persistence across devices. Track lifetime statistics (total players guessed, sessions played, personal best). Allow users to resume incomplete sessions and compare stats with friends.
-  > Added: 2026-01-19
-
-- **[OTHER] Automated Test Suite**
-  > Create pytest suite covering: (1) Player lookup with fuzzy matching, (2) Session management and guess recording, (3) Club/nationality filtering, (4) Ambiguity handling, (5) Name normalization edge cases. Aim for 80%+ coverage on backend logic.
-  > Added: 2026-01-19
-
-- **[UX] Progress Visualization**
-  > Add a visual progress bar beneath the player count showing progress toward 1000. Include milestone markers at 100, 250, 500, 750, 1000 with optional achievement badges (e.g., "Century Club" at 100). Creates stronger sense of accomplishment and goal proximity.
-  > Added: 2026-01-19 | Source: UX Review
-
-- **[META] Session Management UI**
-  > Add a "New Game" button or settings menu with options to: (1) Reset current progress, (2) View session statistics, (3) Share progress with friends. Gives users control and reduces friction when wanting to restart.
-  > Added: 2026-01-19 | Source: UX Review
-
-- **[GAME] Gamification Features**
-  > Add engagement mechanics: (1) Streaks for consecutive days played, (2) Category completion tracking (all players from a club/country), (3) Daily challenges with random player subsets to find. Increases retention and gives reasons to return.
-  > Added: 2026-01-19 | Source: UX Review
-
-- **[META] Competitive Mode**
-  > Long-term competitive features: (1) Global leaderboards by sport/league, (2) Daily challenges with scoring algorithms, (3) Seasonal rankings, (4) Achievement badges, (5) Friend challenges with score multipliers.
   > Added: 2026-01-19
 
 - **[GAME] Additional Sports Integration**
@@ -196,10 +130,6 @@ Last updated: 2026-02-07
   > Add ability to share session results via social media (Twitter/X, Instagram). Generate shareable image with player count, top stats, and unique session code.
   > Added: 2026-01-19
 
-- **[UX] Enhanced Empty State**
-  > Improve the empty state with engaging content: (1) Example player names as inspiration, (2) Suggested categories to explore, (3) Random "Did you know?" facts about players.
-  > Added: 2026-01-19 | Source: UX Review
-
 - **[UX] Mobile Touch Improvements**
   > Enhance mobile experience: (1) Increase touch targets slightly, (2) Add swipe-to-dismiss on modal, (3) Consider bottom-sheet style modal on mobile, (4) Haptic feedback on successful guesses.
   > Added: 2026-01-19 | Source: UX Review
@@ -210,15 +140,37 @@ Last updated: 2026-02-07
 
 ### Low Priority
 
-- **[UX] Filter Roster by Guessed/Unguessed**
-  > Add toggle filter to Team Roster Lookup feature: "All | Guessed | Unguessed" to help users find gaps in their knowledge for specific teams. Users can focus on which players they haven't identified yet or review their completed rosters.
-  > Pairs well with existing Filter Guessed Players feature and leverages current Team Roster exploration infrastructure.
-  > Added: 2026-01-26 | Source: UX Review
+- **[PERF] Database Query Optimization**
+  > Profile and optimize player lookup queries, especially fuzzy matching performance. Add database indexes for frequently queried fields beyond normalized_name. Consider caching top 1000 most-guessed players in memory for instant lookups.
+  > Added: 2026-01-19
 
-- **[UX] Roster Progress Indicator**
-  > Add visual progress bar showing roster completion percentage for currently viewed team, with color transitions as completion increases. Display mini-goal/milestone tracker to encourage roster completion (e.g., "3/23 players guessed").
-  > Creates visual feedback and encourages users to complete specific team rosters as side goals.
-  > Added: 2026-01-26 | Source: UX Review
+- **[PERF] Frontend Caching Strategy**
+  > Implement aggressive caching of player lookups to reduce API calls. Use IndexedDB for persistent cache, LRU cache in memory for current session. Add cache invalidation strategy when database is updated.
+  > Added: 2026-01-19
+
+- **[META] Session Persistence Across Tabs**
+  > Sessions should persist when users open multiple tabs. Current implementation may lose session state or create duplicate sessions. Test with multiple browser tabs and implement session ID sharing mechanism.
+  > Added: 2026-01-19
+
+- **[META] User Accounts & Authentication**
+  > Implement user registration, login, and session persistence across devices. Track lifetime statistics (total players guessed, sessions played, personal best). Allow users to resume incomplete sessions and compare stats with friends.
+  > Added: 2026-01-19
+
+- **[OTHER] Automated Test Suite**
+  > Create pytest suite covering: (1) Player lookup with fuzzy matching, (2) Session management and guess recording, (3) Club/nationality filtering, (4) Ambiguity handling, (5) Name normalization edge cases. Aim for 80%+ coverage on backend logic.
+  > Added: 2026-01-19
+
+- **[META] Session Management UI**
+  > Add a "New Game" button or settings menu with options to: (1) Reset current progress, (2) View session statistics, (3) Share progress with friends. Gives users control and reduces friction when wanting to restart.
+  > Added: 2026-01-19 | Source: UX Review
+
+- **[GAME] Gamification Features**
+  > Add engagement mechanics: (1) Streaks for consecutive days played, (2) Category completion tracking (all players from a club/country), (3) Daily challenges with random player subsets to find. Increases retention and gives reasons to return.
+  > Added: 2026-01-19 | Source: UX Review
+
+- **[META] Competitive Mode**
+  > Long-term competitive features: (1) Global leaderboards by sport/league, (2) Daily challenges with scoring algorithms, (3) Seasonal rankings, (4) Achievement badges, (5) Friend challenges with score multipliers.
+  > Added: 2026-01-19
 
 - **[UX] Roster Sharing Feature**
   > Add share button for completed or partial roster achievements. Generate shareable card or link showing roster completion percentage and highlighted guessed players. Enables social engagement and allows users to showcase progress.
@@ -231,10 +183,6 @@ Last updated: 2026-02-07
 
 - **[GAME] Different Game Modes**
   > Implement multiple game variants: (1) Classic - guess as many players as possible, (2) Timed - 10 minute rounds, (3) Blind - only show position/nationality, no club history, (4) Club specialist - focus on specific club's entire roster.
-  > Added: 2026-01-19
-
-- **[UX] Player Statistics Dashboard**
-  > Display session-specific stats: (1) Distribution by nationality, (2) Distribution by position, (3) Distribution by league, (4) Current streak, (5) Average time between guesses. Include charts/visualizations.
   > Added: 2026-01-19
 
 ---
