@@ -1354,3 +1354,46 @@ label.setting-item {
     flex-shrink: 0;
     pointer-events: none;
 }
+
+/* Reset progress button */
+.setting-item.reset-setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    cursor: default;
+}
+
+.reset-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.reset-info .setting-hint {
+    margin-left: 0;
+}
+
+.reset-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--error);
+    background: transparent;
+    border: 1px solid var(--error);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.reset-btn:hover {
+    color: white;
+    background: var(--error);
+}
+
+.reset-btn:focus-visible {
+    outline: 2px solid var(--error);
+    outline-offset: 2px;
+}

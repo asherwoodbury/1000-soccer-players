@@ -184,6 +184,7 @@ const settingCheckboxes = {
     fullHistory: document.getElementById('setting-full-history'),
     rosterLookup: document.getElementById('setting-roster-lookup')
 };
+const resetProgressBtn = document.getElementById('reset-progress-btn');
 
 // Tabs
 const tabs = document.querySelectorAll('.tab');
@@ -360,6 +361,9 @@ function setupEventListeners() {
         });
     });
 
+    // Reset progress button
+    resetProgressBtn.addEventListener('click', handleResetProgress);
+
     // Tabs
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -408,6 +412,28 @@ function openSettings() {
 function closeSettings() {
     settingsModal.classList.add('hidden');
     settingsBtn.focus();
+}
+
+async function handleResetProgress() {
+    const count = guessedPlayers.length;
+    const confirmMsg = count > 0
+        ? `Are you sure you want to reset your progress? You will lose ${count} guessed player${count === 1 ? '' : 's'}.`
+        : 'Are you sure you want to start a new session?';
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    // Clear session from localStorage
+    localStorage.removeItem('sessionId');
+
+    // Reset local state
+    sessionId = null;
+    guessedPlayers = [];
+
+    // Close settings modal and reload to get fresh session
+    closeSettings();
+    location.reload();
 }
 
 async function handleGuess(e) {
