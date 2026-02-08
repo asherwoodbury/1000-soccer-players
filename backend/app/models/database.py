@@ -162,6 +162,63 @@ def init_database():
     print(f"Database initialized at {DATABASE_PATH}")
 
 
+def normalize_positions():
+    """
+    Normalize player positions to four standard categories:
+    Goalkeeper, Defender, Midfielder, Forward.
+    Junk values (URLs, Q-codes, names) are set to NULL.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    mappings = {
+        "Goalkeeper": [
+            "goalkeeper", "goaltender",
+        ],
+        "Defender": [
+            "defender", "centre-back", "fullback", "full-back",
+            "right-back", "left back", "right back", "back",
+            "sweeper", "libero", "stopper", "wing-back", "centerhalf",
+            "defenseman", "defensa", "lock", "prop",
+        ],
+        "Midfielder": [
+            "midfielder", "wing half", "defensive midfielder",
+            "central midfielder", "attacking midfielder",
+            "wide midfielder", "left midfielder", "right midfielder",
+            "playmaker", "midfield", "medio", "setter", "fly-half",
+            "midpoint",
+        ],
+        "Forward": [
+            "forward", "centre-forward", "attacker", "winger",
+            "left winger", "right winger", "inside forward",
+            "left wing", "second striker", "inverted winger",
+            "small forward", "delantero", "outrunner", "line player",
+        ],
+    }
+
+    total = 0
+    for category, variants in mappings.items():
+        placeholders = ",".join("?" * len(variants))
+        cursor.execute(
+            f"UPDATE players SET position = ? "
+            f"WHERE LOWER(position) IN ({placeholders}) AND position != ?",
+            [category] + variants + [category]
+        )
+        total += cursor.rowcount
+
+    # NULL out junk values (URLs, Q-codes, names, etc.)
+    cursor.execute("""
+        UPDATE players SET position = NULL
+        WHERE position IS NOT NULL
+          AND position NOT IN ('Goalkeeper', 'Defender', 'Midfielder', 'Forward')
+    """)
+    nulled = cursor.rowcount
+
+    conn.commit()
+    conn.close()
+    print(f"Normalized {total} positions, cleared {nulled} junk values")
+
+
 def rebuild_fts_index():
     """
     Rebuild the FTS5 index from scratch.
