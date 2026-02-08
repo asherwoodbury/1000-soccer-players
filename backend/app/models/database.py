@@ -63,11 +63,33 @@ def init_database():
             start_date TEXT,
             end_date TEXT,
             is_national_team BOOLEAN DEFAULT FALSE,
+            is_stale BOOLEAN DEFAULT 0,
             FOREIGN KEY (player_id) REFERENCES players(id),
             FOREIGN KEY (club_id) REFERENCES clubs(id),
             UNIQUE(player_id, club_id, start_date)
         )
     """)
+
+    # Add is_stale column if table already exists without it
+    try:
+        cursor.execute("ALTER TABLE player_clubs ADD COLUMN is_stale BOOLEAN DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    # Club aliases for matching names across data sources
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS club_aliases (
+            id INTEGER PRIMARY KEY,
+            club_id INTEGER NOT NULL REFERENCES clubs(id),
+            name TEXT NOT NULL,
+            normalized_name TEXT NOT NULL,
+            source TEXT NOT NULL,
+            external_id TEXT,
+            UNIQUE(normalized_name, source)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_club_aliases_normalized ON club_aliases(normalized_name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_club_aliases_club ON club_aliases(club_id)")
 
     # Sessions table (for tracking guessing sessions)
     cursor.execute("""
