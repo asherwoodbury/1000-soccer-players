@@ -125,12 +125,12 @@ BOOTSTRAP_ALIASES = {
     "Sparta Rotterdam": "Sparta Rotterdam",
     "Go Ahead Eagles": "Go Ahead Eagles",
     "NAC Breda": "NAC Breda",
-    "NEC": "NEC (football club)",
+    "NEC": "N.E.C.",
     "RKC Waalwijk": "RKC Waalwijk",
     "PEC Zwolle": "PEC Zwolle",
     "Almere City FC": "Almere City FC",
     "Heracles Almelo": "Heracles Almelo",
-    "SBV Excelsior": "SBV Excelsior",
+    "SBV Excelsior": "Excelsior Rotterdam",
     "FC Volendam": "FC Volendam",
     "Fortuna Sittard": "Fortuna Sittard",
     # England
@@ -231,8 +231,6 @@ BOOTSTRAP_ALIASES = {
     "AC Goianiense": "Atlético Clube Goianiense",
     "EC Juventude": "Esporte Clube Juventude",
     # Additional matches found during testing
-    "NEC": "N.E.C.",
-    "SBV Excelsior": "Excelsior Rotterdam",
     "Telstar 1963": "SC Telstar",
     "FC Alverca": "F.C. Alverca",
     "EC Vitória": "E.C. Vitória",
@@ -260,7 +258,7 @@ BOOTSTRAP_ALIASES = {
     "Real Oviedo": "Real Oviedo",
     "AC Pisa 1909": "Pisa S.C.",
     "Hamburger SV": "Hamburger SV",
-    "1045": "Paris FC",  # Paris FC has id 1045
+
 }
 
 # National teams in footballdata.db - these are teams with country names
