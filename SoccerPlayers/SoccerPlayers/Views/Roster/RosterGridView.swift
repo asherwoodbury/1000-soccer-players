@@ -65,7 +65,7 @@ struct RosterGridView: View {
 
             if let startYear = player.startYear {
                 let endYear = player.endYear.map { String($0) } ?? "present"
-                Text("\(startYear)-\(endYear)")
+                Text(verbatim: "\(startYear)-\(endYear)")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

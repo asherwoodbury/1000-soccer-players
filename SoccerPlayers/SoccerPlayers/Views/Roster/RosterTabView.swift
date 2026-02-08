@@ -188,7 +188,7 @@ struct RosterTabView: View {
 
             Spacer()
 
-            Text("\(viewModel.selectedSeason)/\(String(viewModel.selectedSeason + 1).suffix(2))")
+            Text(verbatim: "\(viewModel.selectedSeason)/\(String(viewModel.selectedSeason + 1).suffix(2))")
                 .font(.headline)
 
             Spacer()
