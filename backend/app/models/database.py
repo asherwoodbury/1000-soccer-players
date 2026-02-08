@@ -162,6 +162,59 @@ def init_database():
     print(f"Database initialized at {DATABASE_PATH}")
 
 
+def infer_youth_end_dates():
+    """
+    Infer end dates for youth/age-restricted national team records.
+
+    If a player was on a U21 team and has no end_date, set end_date to
+    when they aged out (birth_date + age_limit + 1 year). For example,
+    a U21 player born 2000-03-15 gets end_date 2022-03-15 (turned 22).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Map age group pattern in club name -> max age (end when player turns this + 1)
+    age_groups = [
+        ("under-15", 16),
+        ("under-16", 17),
+        ("under-17", 18),
+        ("under-18", 19),
+        ("under-19", 20),
+        ("under-20", 21),
+        ("under-21", 22),
+        ("under-22", 23),
+        ("under-23", 24),
+    ]
+
+    total = 0
+    for pattern, age_out in age_groups:
+        # Set end_date to birth_date + age_out years for records missing end_date.
+        # SQLite date arithmetic: date(birth_date, '+N years')
+        cursor.execute(f"""
+            UPDATE player_clubs
+            SET end_date = date(
+                (SELECT p.birth_date FROM players p WHERE p.id = player_clubs.player_id),
+                '+{age_out} years'
+            )
+            WHERE end_date IS NULL
+              AND is_national_team = 1
+              AND club_id IN (
+                  SELECT id FROM clubs WHERE LOWER(name) LIKE ?
+              )
+              AND player_id IN (
+                  SELECT id FROM players WHERE birth_date IS NOT NULL
+              )
+        """, (f"%{pattern}%",))
+        count = cursor.rowcount
+        if count > 0:
+            print(f"  {pattern}: {count} end dates inferred (age out at {age_out})")
+        total += count
+
+    conn.commit()
+    conn.close()
+    print(f"  Total: {total} youth team end dates inferred")
+
+
 def normalize_positions():
     """
     Normalize player positions to four standard categories:
