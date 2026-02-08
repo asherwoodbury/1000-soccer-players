@@ -662,11 +662,11 @@ function renderPlayersList(highlightNew = false) {
     playersList.innerHTML = filteredPlayers.map((player, index) => {
         const isNew = highlightNew && index === 0 && player.isNew;
 
-        // Determine current clubs (where end_date is null and not national team)
+        // Determine current clubs (where end_date is null, not national team, not stale)
         // Use display_name to match against top_clubs which also uses display names
         const currentClubNames = new Set(
             (player.clubs || [])
-                .filter(c => !c.end_date && !c.is_national_team)
+                .filter(c => !c.end_date && !c.is_national_team && !c.is_stale)
                 .map(c => c.display_name || c.name)
         );
 
@@ -796,11 +796,11 @@ function showPlayerModal(player) {
     const topClubsSection = document.getElementById('modal-top-clubs-section');
     const topClubsEl = document.getElementById('modal-top-clubs');
     if (displaySettings.showTopClubs && player.top_clubs?.length) {
-        // Check which clubs are current (player still there)
+        // Check which clubs are current (player still there, not stale)
         // Use display_name to match against top_clubs which also uses display names
         const currentClubNames = new Set(
             (player.clubs || [])
-                .filter(c => !c.end_date && !c.is_national_team)
+                .filter(c => !c.end_date && !c.is_national_team && !c.is_stale)
                 .map(c => c.display_name || c.name)
         );
 
@@ -827,21 +827,30 @@ function showPlayerModal(player) {
     if (displaySettings.showTopClubs && displaySettings.showFullHistory && player.clubs?.length) {
         clubsList.innerHTML = player.clubs.map(club => {
             const startYear = club.start_date ? club.start_date.substring(0, 4) : '?';
-            const endYear = club.end_date ? club.end_date.substring(0, 4) : 'Present';
+            const isStale = club.is_stale;
+            const endYear = club.end_date ? club.end_date.substring(0, 4) : (isStale ? '?' : 'Present');
             const isNational = club.is_national_team;
-            const isCurrent = !club.end_date;
+            const isCurrent = !club.end_date && !isStale;
             const displayName = club.display_name || club.name;
 
             const classes = [
                 isNational ? 'national-team' : '',
-                isCurrent ? 'current-club' : ''
+                isCurrent ? 'current-club' : '',
+                isStale ? 'stale-club' : ''
             ].filter(Boolean).join(' ');
+
+            let badge = '';
+            if (isCurrent) {
+                badge = '<span class="current-badge">Current</span>';
+            } else if (isStale) {
+                badge = '<span class="stale-badge">Unconfirmed</span>';
+            }
 
             return `
                 <li class="${classes}">
                     <a href="#" class="club-link" data-club="${escapeHtml(club.name)}">${escapeHtml(displayName)}</a>
                     <span class="club-dates">(${startYear} - ${endYear})</span>
-                    ${isCurrent ? '<span class="current-badge">Current</span>' : ''}
+                    ${badge}
                 </li>
             `;
         }).join('');

@@ -122,6 +122,7 @@ class ClubHistory(BaseModel):
     start_date: Optional[str]
     end_date: Optional[str]
     is_national_team: bool
+    is_stale: bool = False
 
 
 class PlayerResponse(BaseModel):
@@ -238,7 +239,7 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
 
     # Get club history
     cursor.execute("""
-        SELECT c.name, pc.start_date, pc.end_date, pc.is_national_team
+        SELECT c.name, pc.start_date, pc.end_date, pc.is_national_team, pc.is_stale
         FROM player_clubs pc
         JOIN clubs c ON pc.club_id = c.id
         WHERE pc.player_id = ?
@@ -254,7 +255,8 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
             display_name=format_national_team_name(row['name']) if row['is_national_team'] else row['name'],
             start_date=row['start_date'],
             end_date=row['end_date'],
-            is_national_team=bool(row['is_national_team'])
+            is_national_team=bool(row['is_national_team']),
+            is_stale=bool(row['is_stale'])
         )
         for row in club_rows
     ]

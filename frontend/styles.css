@@ -686,6 +686,23 @@ header h1 {
     letter-spacing: 0.02em;
 }
 
+.stale-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--border);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.club-history li.stale-club {
+    opacity: 0.65;
+}
+
 /* Top clubs list with clickable links */
 .top-clubs-list .club-link.current-club {
     color: var(--primary);
