@@ -149,6 +149,7 @@ async def search_clubs(
     normalized = normalize_name(query)
 
     # Search for clubs with players - fetch more than limit to allow for re-sorting
+    # Also search club_aliases so users can find clubs by any known name
     cursor.execute("""
         SELECT c.id, c.name,
                EXISTS(SELECT 1 FROM player_clubs pc
@@ -156,11 +157,16 @@ async def search_clubs(
                COUNT(DISTINCT pc.player_id) as player_count
         FROM clubs c
         LEFT JOIN player_clubs pc ON c.id = pc.club_id
-        WHERE c.normalized_name LIKE ?
+            AND (pc.is_stale = 0 OR pc.is_stale IS NULL)
+        WHERE c.id IN (
+            SELECT c2.id FROM clubs c2 WHERE c2.normalized_name LIKE ?
+            UNION
+            SELECT ca.club_id FROM club_aliases ca WHERE ca.normalized_name LIKE ?
+        )
         GROUP BY c.id
         ORDER BY player_count DESC
         LIMIT ?
-    """, (f"%{normalized}%", limit * 2))  # Fetch extra for re-sorting
+    """, (f"%{normalized}%", f"%{normalized}%", limit * 2))  # Fetch extra for re-sorting
 
     results = cursor.fetchall()
     conn.close()
@@ -265,6 +271,7 @@ async def get_club_roster(
                 END as end_year
             FROM player_clubs pc
             WHERE pc.club_id = ?
+              AND (pc.is_stale = 0 OR pc.is_stale IS NULL)
               AND pc.start_date IS NOT NULL
               AND pc.start_date NOT LIKE '%http%'
               AND LENGTH(pc.start_date) >= 4
@@ -345,6 +352,7 @@ async def get_club_years(club_id: int):
             END) as max_year
         FROM player_clubs pc
         WHERE pc.club_id = ?
+          AND (pc.is_stale = 0 OR pc.is_stale IS NULL)
           AND pc.start_date IS NOT NULL
     """, (club_id,))
 
