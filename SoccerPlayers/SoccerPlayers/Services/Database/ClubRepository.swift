@@ -155,13 +155,16 @@ final class ClubRepository {
                   AND pc.start_date IS NOT NULL
             """
 
+            let minSeason = 2000
+            let maxSeason = 2025
+
             if let row = try Row.fetchOne(db, sql: sql, arguments: [clubId]),
                let minYear: Int = row["min_year"] {
-                let maxYear: Int = row["max_year"] ?? Calendar.current.component(.year, from: Date())
-                return (minYear, maxYear)
+                let maxYear: Int = row["max_year"] ?? maxSeason
+                return (max(minYear, minSeason), min(maxYear, maxSeason))
             }
 
-            return (2000, Calendar.current.component(.year, from: Date()))
+            return (minSeason, maxSeason)
         }
     }
 }

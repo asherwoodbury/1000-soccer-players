@@ -359,15 +359,18 @@ async def get_club_years(club_id: int):
     row = cursor.fetchone()
     conn.close()
 
+    MIN_SEASON = 2000
+    MAX_SEASON = 2025
+
     if row and row['min_year']:
         return {
             "club_id": club_id,
-            "min_year": row['min_year'],
-            "max_year": row['max_year'] or 2025
+            "min_year": max(row['min_year'], MIN_SEASON),
+            "max_year": min(row['max_year'] or MAX_SEASON, MAX_SEASON)
         }
 
     return {
         "club_id": club_id,
-        "min_year": 2000,
-        "max_year": 2025
+        "min_year": MIN_SEASON,
+        "max_year": MAX_SEASON
     }

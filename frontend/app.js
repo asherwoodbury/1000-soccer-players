@@ -1102,8 +1102,8 @@ async function selectClub(clubId, clubName, displayName) {
         await loadRoster();
     } catch (e) {
         console.error('Error getting club years:', e);
-        clubYearRange = { min: 2000, max: new Date().getFullYear() };
-        currentSeason = new Date().getFullYear();
+        clubYearRange = { min: 2000, max: 2025 };
+        currentSeason = 2025;
         await loadRoster();
     }
 }

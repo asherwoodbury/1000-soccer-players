@@ -21,12 +21,17 @@ enum Constants {
         "buffon", "casillas", "neuer", "oblak", "courtois", "lloris"
     ]
 
+    /// Season bounds
+    static let minSeason = 2000
+    static let maxSeason = 2025
+
     /// Default season for roster viewing
     static var currentSeason: Int {
         let year = Calendar.current.component(.year, from: Date())
         let month = Calendar.current.component(.month, from: Date())
         // If before July, show previous season
-        return month < 7 ? year - 1 : year
+        let season = month < 7 ? year - 1 : year
+        return min(season, maxSeason)
     }
 
     /// Target number of players to guess (the "1000" in "1000 Soccer Players")
