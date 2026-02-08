@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-02-07
+Last updated: 2026-02-08 16:00
 
 > **Note:** iOS-specific tasks and App Store publishing checklist have been moved to [BACKLOG-IOS.md](BACKLOG-IOS.md)
 
@@ -34,6 +34,12 @@ Last updated: 2026-02-07
 ### Data (DATA)
 | Item | Priority |
 |------|----------|
+| Football-data.org Extraction Tool | COMPLETED |
+| Merge Football-data.org Data into players.db | HIGH |
+| Cap Club History at 2025-26 Season | HIGH |
+| Infer End Dates for Youth/Age-Restricted Teams | HIGH |
+| Periodic Data Refresh Strategy | MEDIUM |
+| Cross-Source Player Deduplication | MEDIUM |
 
 ### Game Features (GAME)
 | Item | Priority |
@@ -42,6 +48,7 @@ Last updated: 2026-02-07
 | Team Roster Lookup | COMPLETED |
 | Filter Guessed Players | COMPLETED |
 | Expanded Leagues & National Teams | MEDIUM |
+| Give Up and Reveal All Players | MEDIUM |
 | Different Game Modes | LOW |
 | Gamification Features | LOW |
 | Additional Sports | MEDIUM |
@@ -87,6 +94,49 @@ Last updated: 2026-02-07
 
 ### High Priority
 
+- **[DATA] Merge Football-data.org Data into players.db** - Priority: HIGH
+  > Build an export/merge script that reads from `footballdata.db` and updates the game's `players.db` with enriched data. Key steps:
+  > 1. Match `persons` in footballdata.db to `players` in players.db (by name + birth date + nationality)
+  > 2. Import new players not already in players.db (fills gaps in Wikidata coverage)
+  > 3. Update/correct club histories using match lineup data (more accurate than Wikidata's often-stale `member of sports team` property)
+  > 4. Add missing clubs from footballdata.db `teams` table
+  > 5. Handle conflicts gracefully (prefer football-data.org for recent seasons, Wikidata for older data)
+  >
+  > This directly addresses the CRITICAL "Incorrect Team Assignments" bug by providing a second, more reliable data source for recent seasons.
+  > Added: 2026-02-07
+
+- **[DATA] Cap Club History at 2025-26 Season** - Priority: HIGH
+  > Club history and team roster data should not extend beyond the 2025-26 season. Currently, data from future seasons may appear if Wikidata or football-data.org sources contain forward-looking entries (e.g., pre-announced transfers for 2026-27).
+  >
+  > **Changes needed:**
+  > 1. Add a season cap in the roster query logic (`clubs.py`) so that the year/season selector does not go beyond 2025-26
+  > 2. Filter out `player_clubs` entries with `start_date` beyond the 2025-26 season during data import (extraction scripts)
+  > 3. Ensure the `/clubs/{id}/years` endpoint returns a max year no later than 2025
+  > 4. Apply the same cap in the iOS app's roster browsing
+  >
+  > Prevents confusion from speculative or pre-announced transfer data that has not actually taken effect yet.
+  > Added: 2026-02-08
+
+- **[DATA] Infer End Dates for Youth/Age-Restricted Teams** - Priority: HIGH
+  > Youth and age-restricted team entries (U16, U17, U18, U19, U20, U21) in a player's club history may show as "active" (no end_date) even when the player has aged out. Fix this by inferring an end date based on the player's date of birth and the age category of the team.
+  >
+  > **Logic:**
+  > - U16 team: end when player turns 17
+  > - U17 team: end when player turns 18
+  > - U18 team: end when player turns 19
+  > - U19 team: end when player turns 20
+  > - U20 team: end when player turns 21
+  > - U21 team: end when player turns 22
+  >
+  > **Implementation approach:**
+  > 1. Detect age-category teams by parsing club/team names for "U16", "U17", "U18", "U19", "U20", "U21", "under-16", "under-17", etc.
+  > 2. For entries missing an `end_date`, calculate the inferred end date from the player's `birth_date` plus the corresponding age limit + 1 year
+  > 3. Apply this as a data cleanup step (either at import time in extraction scripts or as a post-processing migration on `player_clubs`)
+  > 4. Ensure the roster query and player profile display reflect the corrected end dates so these teams no longer appear as "Current"
+  >
+  > **Affected areas:** Player profiles (club history, "Current" badge), team rosters (youth team rosters showing aged-out players)
+  > Added: 2026-02-08
+
 - **[UX] Clean Up Position Categories**
   > Standardize position names throughout the Rosters page to reduce redundancy and confusion. Changes needed:
   > - Rename "Wing half" → "Winger"
@@ -102,6 +152,26 @@ Last updated: 2026-02-07
 
 ### Medium Priority
 
+- **[DATA] Periodic Data Refresh Strategy** - Priority: MEDIUM
+  > Establish a workflow for keeping player and club data up to date across both data sources. Considerations:
+  > 1. Schedule regular re-runs of `extract_footballdata.py sync-all` for current/recent seasons
+  > 2. Re-run the merge script after each sync to propagate updates to players.db
+  > 3. Detect and flag players whose "current team" has changed (transfer window updates)
+  > 4. Consider a lightweight delta-check mode that only fetches seasons with new matches
+  >
+  > Prevents the stale data problem from recurring after the initial merge fix.
+  > Added: 2026-02-07
+
+- **[DATA] Cross-Source Player Deduplication** - Priority: MEDIUM
+  > After merging football-data.org data into players.db, audit for duplicate player entries that were not matched during import. Approach:
+  > 1. Find players with very similar normalized names and overlapping career dates
+  > 2. Use birth date as strong signal for matching (when available from both sources)
+  > 3. Build a manual review tool or CSV export for borderline cases
+  > 4. Merge duplicates by consolidating club histories and keeping the richer profile
+  >
+  > Ensures data quality after combining two independent data sources.
+  > Added: 2026-02-07
+
 - **[GAME] Expanded Leagues & National Teams**
   > Add player data from Portuguese (Primeira Liga), Dutch (Eredivisie), and Turkish (Süper Lig) leagues. Update extract_wikidata.py SPARQL queries to include these leagues. Also prioritize women's leagues and women's national teams with better Wikidata coverage.
   > Added: 2026-01-19 | Updated: 2026-01-27
@@ -109,6 +179,25 @@ Last updated: 2026-02-07
 - **[META] Multiplayer Mode**
   > Allow multiple users to join the same session and guess in parallel. Implement real-time or near-real-time progress synchronization so players can see each other's guesses, player counts, and session leaderboards. Will require WebSocket support or polling mechanism for live updates.
   > Added: 2026-01-19
+
+- **[GAME] Give Up and Reveal All Players** - Priority: MEDIUM
+  > Add a "Give Up" feature that ends the current session and reveals all unguessed players in the roster view. Once the user gives up, they should no longer be able to submit new guesses.
+  >
+  > **Backend changes:**
+  > 1. Add a `given_up` boolean (or `given_up_at` timestamp) column to the `sessions` table
+  > 2. Add a new endpoint (e.g., `POST /api/sessions/{id}/give-up`) to mark the session as given up
+  > 3. Modify the guess endpoint (`POST /api/sessions/{id}/guess/{player_id}`) to reject guesses when the session is in a "given up" state
+  > 4. Modify the roster endpoint to return full player names (instead of "?????") when the session is given up
+  >
+  > **Frontend changes:**
+  > 1. Add a "Give Up" button (with confirmation dialog to prevent accidental clicks)
+  > 2. After giving up, reveal all unguessed player names in the roster view so the user can see who they missed
+  > 3. Disable the guess input field and submit button
+  > 4. Display a summary showing total guessed vs. total available players
+  > 5. Persist the given-up state so it survives page reloads
+  >
+  > **iOS app:** Will also need equivalent changes in the SwiftUI app if this feature is implemented on web first.
+  > Added: 2026-02-08
 
 - **[GAME] Additional Sports Integration**
   > Extend data model and extraction scripts to support basketball and baseball in addition to soccer. Create abstracted sport-agnostic schema and UI that can display relevant statistics for each sport.
@@ -188,70 +277,6 @@ Last updated: 2026-02-07
 ---
 
 ## Completed
-
-- **[FEAT] FastAPI Backend with SQLite Database**
-  > Created backend application with FastAPI framework, implemented SQLite schema for players, clubs, player_clubs, sessions, and guessed_players tables.
-  > Completed: 2026-01-19
-
-- **[FEAT] Player Lookup with Fuzzy Matching**
-  > Implemented player lookup endpoint with name normalization (lowercase, diacritics removal), exact match first approach, then prefix matching.
-  > Completed: 2026-01-19
-
-- **[FEAT] Session Management**
-  > Implemented session creation, retrieval, and guess recording endpoints. Prevents duplicate guesses within a session.
-  > Completed: 2026-01-19
-
-- **[FEAT] Club and Nationality Filtering**
-  > Implemented session filtering endpoints to retrieve guessed players filtered by club or nationality.
-  > Completed: 2026-01-19
-
-- **[FEAT] Wikidata Extraction Scripts**
-  > Created extract_sample.py for quick testing and extract_wikidata.py for full extraction (47k+ players).
-  > Completed: 2026-01-19
-
-- **[FEAT] Club History Batch Fetching Script**
-  > Created fetch_club_histories.py to efficiently fetch club histories in batches of 50 using SPARQL queries.
-  > Completed: 2026-01-19
-
-- **[FEAT] Vanilla JavaScript Frontend**
-  > Built responsive single-page application with vanilla JavaScript. Mobile-friendly UI with CSS variables.
-  > Completed: 2026-01-19
-
-- **[FEAT] CORS Configuration**
-  > Configured CORS in FastAPI backend for localhost development servers.
-  > Completed: 2026-01-19
-
-- **[FEAT] Session Persistence in LocalStorage**
-  > Implemented localStorage caching of session ID for persistence across page reloads.
-  > Completed: 2026-01-19
-
-- **[UX] Accessibility Enhancements**
-  > Added ARIA labels, keyboard navigation, proper focus management for modal.
-  > Completed: 2026-01-19 | Source: UX Review
-
-- **[UX] Loading States and Animations**
-  > Added loading spinner, count bump animation, slide-in for new cards, fade/slide transitions.
-  > Completed: 2026-01-19 | Source: UX Review
-
-- **[UX] Micro-interactions**
-  > Added hover lift effect, button press effect, focus-visible outlines.
-  > Completed: 2026-01-19 | Source: UX Review
-
-- **[DOCS] Comprehensive Project Documentation**
-  > Created OVERVIEW.md with architecture, data model, API reference, and development guidelines.
-  > Completed: 2026-01-19
-
-- **[DOCS] CLAUDE.md Development Guidance**
-  > Created CLAUDE.md with build/run commands, architecture overview, agent workflows.
-  > Completed: 2026-01-19
-
-- **[INFRA] Run Script with Virtual Environment**
-  > Created run.sh that auto-creates venv, installs dependencies, starts both servers.
-  > Completed: 2026-01-19
-
-- **[OTHER] Refactor Player Matching Logic**
-  > Refactored matching logic into `PlayerMatcher` service class in `backend/app/services/player_matcher.py`. Created separate `fuzzy_matching.py` module with Levenshtein distance, Soundex, and Metaphone algorithms. Added 67 unit tests with full coverage. Improves testability and enables Smart Name Matching feature.
-  > Completed: 2026-01-25
 
 - **[GAME] Player Info Display Settings**
   > Implemented configurable display preferences for player information shown after a successful guess. Five toggleable fields via Settings UI:
@@ -377,4 +402,21 @@ Last updated: 2026-02-07
 
 - **[META] Reset Progress Button**
   > Added "Reset Progress" button to settings modal allowing users to clear all guessed players and start fresh. Includes confirmation dialog showing current player count before resetting.
+  > Completed: 2026-02-07
+
+- **[DATA] Football-data.org Extraction Tool**
+  > Built `backend/scripts/extract_footballdata.py` -- a self-contained extraction tool for football-data.org's free API tier. Features:
+  > - **Subcommands**: `sync-teams`, `sync-matches`, `sync-lineups`, `sync-all`, `stats`
+  > - **12 free-tier competitions**: PL, BL1, PD, SA, FL1, DED, PPL, ELC, BSA, CL, WC, EC
+  > - **Season range**: 2000-2025
+  > - **Separate database**: Stores in `backend/data/footballdata.db` (does not touch players.db)
+  > - **Raw API response caching**: `api_responses` table with hash-based deduplication avoids redundant API calls
+  > - **3-layer resumability**: (1) API response cache skips already-fetched endpoints, (2) `sync_status` table tracks completed competition/season/step combos, (3) UNIQUE constraints prevent duplicate parsed records
+  > - **Structured tables**: competitions, teams, persons, matches, match_lineups, team_competitions
+  > - **API key resolution**: CLI flag, environment variable, or `.env` file
+  > - **Rate limiting**: Built-in request throttling for free-tier limits
+  > - **Zero project dependencies**: Uses only stdlib (urllib, sqlite3, json) -- copy-pasteable to other projects
+  >
+  > Provides a second, independent data source to cross-reference and correct Wikidata's often-stale club assignments.
+  > Key file: `backend/scripts/extract_footballdata.py`
   > Completed: 2026-02-07
