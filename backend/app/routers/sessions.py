@@ -17,6 +17,7 @@ class SessionResponse(BaseModel):
     id: int
     created_at: str
     player_count: int
+    given_up: bool
 
 
 class ClubHistory(BaseModel):
@@ -42,6 +43,7 @@ class SessionDetail(BaseModel):
     id: int
     created_at: str
     player_count: int
+    given_up: bool
     players: list[GuessedPlayerSummary]
 
 
@@ -67,7 +69,8 @@ async def create_session():
     return SessionResponse(
         id=session_id,
         created_at=datetime.now().isoformat(),
-        player_count=0
+        player_count=0,
+        given_up=False
     )
 
 
@@ -180,6 +183,7 @@ async def get_session(session_id: int):
         id=session['id'],
         created_at=session['created_at'],
         player_count=len(players),
+        given_up=session['given_up_at'] is not None,
         players=players
     )
 
@@ -191,10 +195,26 @@ async def add_guess(session_id: int, player_id: int):
     cursor = conn.cursor()
 
     # Verify session exists
-    cursor.execute("SELECT id FROM sessions WHERE id = ?", (session_id,))
-    if not cursor.fetchone():
+    cursor.execute("SELECT id, given_up_at FROM sessions WHERE id = ?", (session_id,))
+    session = cursor.fetchone()
+    if not session:
         conn.close()
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Reject guesses if session was given up
+    if session['given_up_at'] is not None:
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM guessed_players WHERE session_id = ?",
+            (session_id,)
+        )
+        count = cursor.fetchone()['count']
+        conn.close()
+        return GuessResult(
+            success=False,
+            already_guessed=False,
+            player_count=count,
+            message="Session ended — you gave up!"
+        )
 
     # Verify player exists
     cursor.execute("SELECT name FROM players WHERE id = ?", (player_id,))
@@ -249,6 +269,42 @@ async def add_guess(session_id: int, player_id: int):
         already_guessed=False,
         player_count=count,
         message=f"Added {player['name']}! ({count} players guessed)"
+    )
+
+
+@router.post("/{session_id}/give-up", response_model=SessionResponse)
+async def give_up(session_id: int):
+    """Give up on a session, revealing all players."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+    session = cursor.fetchone()
+    if not session:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Set given_up_at (idempotent — only set if not already set)
+    if session['given_up_at'] is None:
+        cursor.execute(
+            "UPDATE sessions SET given_up_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (session_id,)
+        )
+        conn.commit()
+
+    cursor.execute(
+        "SELECT COUNT(*) as count FROM guessed_players WHERE session_id = ?",
+        (session_id,)
+    )
+    count = cursor.fetchone()['count']
+
+    conn.close()
+
+    return SessionResponse(
+        id=session_id,
+        created_at=session['created_at'],
+        player_count=count,
+        given_up=True
     )
 
 

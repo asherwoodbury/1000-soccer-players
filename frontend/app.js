@@ -22,6 +22,7 @@ const MAX_RECENT_CLUBS = 5;
 let sessionId = null;
 let guessedPlayers = [];
 let displaySettings = { ...DEFAULT_SETTINGS };
+let givenUp = false;
 let recentClubs = []; // Recently viewed clubs for quick access
 
 // Load settings from localStorage
@@ -185,6 +186,8 @@ const settingCheckboxes = {
     rosterLookup: document.getElementById('setting-roster-lookup')
 };
 const resetProgressBtn = document.getElementById('reset-progress-btn');
+const giveUpBtn = document.getElementById('give-up-btn');
+const giveUpGroup = document.getElementById('give-up-group');
 
 // Tabs
 const tabs = document.querySelectorAll('.tab');
@@ -273,6 +276,10 @@ async function initSession() {
                 const data = await response.json();
                 sessionId = data.id;
                 guessedPlayers = data.players;
+                if (data.given_up) {
+                    givenUp = true;
+                    applyGivenUpState();
+                }
                 updateUI();
                 return;
             }
@@ -361,6 +368,9 @@ function setupEventListeners() {
         });
     });
 
+    // Give up button
+    giveUpBtn.addEventListener('click', handleGiveUp);
+
     // Reset progress button
     resetProgressBtn.addEventListener('click', handleResetProgress);
 
@@ -430,10 +440,55 @@ async function handleResetProgress() {
     // Reset local state
     sessionId = null;
     guessedPlayers = [];
+    givenUp = false;
 
     // Close settings modal and reload to get fresh session
     closeSettings();
     location.reload();
+}
+
+async function handleGiveUp() {
+    const count = guessedPlayers.length;
+    const confirmMsg = `Are you sure you want to give up? You have guessed ${count} out of 1000 players. All remaining players will be revealed and you won't be able to guess anymore.`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/sessions/${sessionId}/give-up`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            givenUp = true;
+            applyGivenUpState();
+            closeSettings();
+        }
+    } catch (e) {
+        showMessage('Error connecting to server', 'error');
+        console.error(e);
+    }
+}
+
+function applyGivenUpState() {
+    // Disable guess input and submit button
+    playerInput.disabled = true;
+    playerInput.placeholder = 'Game over — you gave up';
+    const submitBtn = guessForm.querySelector('button');
+    submitBtn.disabled = true;
+
+    // Hide the give-up button, show "given up" label instead
+    giveUpGroup.classList.add('given-up');
+    giveUpGroup.querySelector('.give-up-btn').style.display = 'none';
+    giveUpGroup.querySelector('.setting-hint').textContent = 'You gave up. All players are revealed.';
+
+    // Update subtitle to show final score
+    document.querySelector('.subtitle').textContent = `${guessedPlayers.length} / 1000 guessed`;
+
+    // Refresh roster if currently loaded
+    if (currentClub) {
+        loadRoster();
+    }
 }
 
 async function handleGuess(e) {
@@ -579,6 +634,11 @@ function updateNationalityOptions() {
 function updateUI(isNewPlayer = false) {
     playerCountEl.textContent = guessedPlayers.length;
 
+    // Update subtitle when given up
+    if (givenUp) {
+        document.querySelector('.subtitle').textContent = `${guessedPlayers.length} / 1000 guessed`;
+    }
+
     // Animate the count when a new player is added
     if (isNewPlayer) {
         playerCountEl.classList.add('bump');
@@ -633,9 +693,12 @@ function renderPlayersList(highlightNew = false) {
 
     if (filteredPlayers.length === 0) {
         if (guessedPlayers.length === 0) {
+            const emptyMsg = givenUp
+                ? 'You gave up without guessing any players. Browse team rosters to see all revealed players.'
+                : 'Start guessing players! Enter a first and last name above.';
             playersList.innerHTML = `
                 <div class="empty-state">
-                    Start guessing players! Enter a first and last name above.
+                    ${emptyMsg}
                 </div>
             `;
         } else {
@@ -1133,6 +1196,14 @@ async function loadRoster() {
         const guessedInRoster = data.players.filter(p => guessedIds.has(p.id)).length;
         rosterGuessedCount.textContent = guessedInRoster;
 
+        // Update roster stats label for given-up state
+        const rosterStatsEl = document.querySelector('.roster-stats');
+        if (givenUp) {
+            rosterStatsEl.innerHTML = `<span id="roster-guessed-count">${guessedInRoster}</span> / <span id="roster-total-count">${data.total_count}</span> players guessed &mdash; all revealed`;
+        } else {
+            rosterStatsEl.innerHTML = `<span id="roster-guessed-count">${guessedInRoster}</span> / <span id="roster-total-count">${data.total_count}</span> players guessed`;
+        }
+
         // Render roster
         if (data.players.length === 0) {
             rosterPlayers.innerHTML = `
@@ -1141,7 +1212,7 @@ async function loadRoster() {
                 </div>
             `;
         } else {
-            // Sort: guessed first, then alphabetically
+            // Sort: guessed first, then revealed (if given up), then unguessed, then alphabetically
             const sortedPlayers = [...data.players].sort((a, b) => {
                 const aGuessed = guessedIds.has(a.id);
                 const bGuessed = guessedIds.has(b.id);
@@ -1152,22 +1223,40 @@ async function loadRoster() {
 
             rosterPlayers.innerHTML = sortedPlayers.map(player => {
                 const isGuessed = guessedIds.has(player.id);
+                const isRevealed = !isGuessed && givenUp;
+                const showName = isGuessed || isRevealed;
+                const cssClass = isGuessed ? 'guessed' : (isRevealed ? 'revealed' : 'unguessed');
+                const isClickable = isGuessed || isRevealed;
                 return `
-                    <div class="roster-player ${isGuessed ? 'guessed' : 'unguessed'}" ${isGuessed ? `data-player-id="${player.id}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(player.name)}"` : ''}>
-                        <div class="${isGuessed ? '' : 'player-name-hidden'}">
-                            ${isGuessed ? escapeHtml(player.name) : '?????'}
+                    <div class="roster-player ${cssClass}" ${isClickable ? `data-player-id="${player.id}" tabindex="0" role="button" aria-label="View details for ${escapeHtml(player.name)}"` : ''}>
+                        <div class="${showName ? '' : 'player-name-hidden'}">
+                            ${showName ? escapeHtml(player.name) : '?????'}
                         </div>
                         ${player.position ? `<div class="roster-player-position">${escapeHtml(player.position)}</div>` : ''}
                     </div>
                 `;
             }).join('');
 
-            // Add click handlers for guessed players
-            rosterPlayers.querySelectorAll('.roster-player.guessed').forEach(card => {
-                const openModal = () => {
+            // Add click handlers for guessed and revealed players
+            rosterPlayers.querySelectorAll('.roster-player[data-player-id]').forEach(card => {
+                const openModal = async () => {
                     const playerId = parseInt(card.dataset.playerId);
+                    // Check guessed players first (already have full data)
                     const player = guessedPlayers.find(p => p.id === playerId);
-                    if (player) showPlayerModal(player);
+                    if (player) {
+                        showPlayerModal(player);
+                    } else {
+                        // Revealed player — fetch full details from API
+                        try {
+                            const response = await fetch(`${API_BASE}/players/${playerId}`);
+                            if (response.ok) {
+                                const playerData = await response.json();
+                                showPlayerModal(playerData);
+                            }
+                        } catch (e) {
+                            console.error('Error fetching player details:', e);
+                        }
+                    }
                 };
 
                 card.addEventListener('click', openModal);

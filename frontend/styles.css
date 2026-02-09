@@ -1414,3 +1414,62 @@ label.setting-item {
     outline: 2px solid var(--error);
     outline-offset: 2px;
 }
+
+/* Give up button */
+.give-up-btn {
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
+.give-up-btn:hover {
+    color: white;
+    background: var(--warning);
+}
+
+.give-up-btn:focus-visible {
+    outline-color: var(--warning);
+}
+
+/* Given-up state in settings */
+#give-up-group.given-up .setting-hint {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Disabled guess input (given-up state) */
+#player-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--bg);
+}
+
+#player-input:disabled::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+#guess-form button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Revealed roster players (given up, not guessed) */
+.roster-player.revealed {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.roster-player.revealed:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.roster-player.revealed:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    opacity: 0.9;
+}

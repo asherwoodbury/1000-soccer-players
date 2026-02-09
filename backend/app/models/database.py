@@ -96,9 +96,16 @@ def init_database():
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            given_up_at TIMESTAMP
         )
     """)
+
+    # Add given_up_at column if table already exists without it
+    try:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN given_up_at TIMESTAMP")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     # Guessed players per session
     cursor.execute("""

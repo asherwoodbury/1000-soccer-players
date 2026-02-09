@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-02-08 16:00
+Last updated: 2026-02-09 15:00
 
 > **Note:** iOS-specific tasks and App Store publishing checklist have been moved to [BACKLOG-IOS.md](BACKLOG-IOS.md)
 
@@ -21,23 +21,27 @@ Last updated: 2026-02-08 16:00
 | Clickable Team Links in Player Profiles | COMPLETED |
 | Shorter National Team Names | COMPLETED |
 | Dark Mode | COMPLETED |
-| Clean Up Position Categories | HIGH |
-| Fix Year Formatting in Roster Display | HIGH |
+| Clean Up Position Categories | COMPLETED |
+| Fix Year Formatting in Roster Display | COMPLETED |
+| Separate Club and National Team History | HIGH |
+| Sort Roster Players by Popularity | MEDIUM |
 | Player Photos & Media | MEDIUM |
 | Mobile Touch Improvements | MEDIUM |
 
 ### Bugs (BUG)
 | Item | Priority |
 |------|----------|
-| Incorrect Team Assignments (Stale Data) | CRITICAL |
+| Incorrect Team Assignments (Stale Data) | COMPLETED |
+| Malformed End Dates in Club History (URLs in Date Fields) | HIGH |
+| Overlapping Club Stints Due to Missing End Dates | HIGH |
 
 ### Data (DATA)
 | Item | Priority |
 |------|----------|
 | Football-data.org Extraction Tool | COMPLETED |
-| Merge Football-data.org Data into players.db | HIGH |
-| Cap Club History at 2025-26 Season | HIGH |
-| Infer End Dates for Youth/Age-Restricted Teams | HIGH |
+| Merge Football-data.org Data into players.db | COMPLETED |
+| Cap Club History at 2025-26 Season | COMPLETED |
+| Infer End Dates for Youth/Age-Restricted Teams | COMPLETED |
 | Periodic Data Refresh Strategy | MEDIUM |
 | Cross-Source Player Deduplication | MEDIUM |
 
@@ -48,7 +52,11 @@ Last updated: 2026-02-08 16:00
 | Team Roster Lookup | COMPLETED |
 | Filter Guessed Players | COMPLETED |
 | Expanded Leagues & National Teams | MEDIUM |
-| Give Up and Reveal All Players | MEDIUM |
+| Give Up and Reveal All Players | COMPLETED |
+| Post-Game Summary Screen | LOW |
+| Revealed Player Enrichment | MEDIUM |
+| Styled Give-Up Confirmation Dialog | LOW |
+| Better Roster Visual Differentiation | LOW |
 | Different Game Modes | LOW |
 | Gamification Features | LOW |
 | Additional Sports | MEDIUM |
@@ -77,78 +85,55 @@ Last updated: 2026-02-08 16:00
 
 ## To Do
 
-### Critical Priority
-
-- **[BUG] Incorrect Team Assignments (Stale Data)**
-  > Some players show incorrect current team assignments. Example: Nico Schulz shows as playing for Dortmund but no longer does.
-  >
-  > **Investigation needed:**
-  > 1. Check if this is a Wikidata issue (stale data at source)
-  > 2. Review sample of team rosters manually to assess scope
-  > 3. Determine if end_date is missing/incorrect in player_clubs table
-  > 4. Consider re-running extract_wikidata.py to refresh data
-  > 5. May need to implement periodic data refresh strategy
-  >
-  > **Affected areas:** Player profiles, team rosters, "current team" indicators
-  > Added: 2026-01-29
-
 ### High Priority
 
-- **[DATA] Merge Football-data.org Data into players.db** - Priority: HIGH
-  > Build an export/merge script that reads from `footballdata.db` and updates the game's `players.db` with enriched data. Key steps:
-  > 1. Match `persons` in footballdata.db to `players` in players.db (by name + birth date + nationality)
-  > 2. Import new players not already in players.db (fills gaps in Wikidata coverage)
-  > 3. Update/correct club histories using match lineup data (more accurate than Wikidata's often-stale `member of sports team` property)
-  > 4. Add missing clubs from footballdata.db `teams` table
-  > 5. Handle conflicts gracefully (prefer football-data.org for recent seasons, Wikidata for older data)
+- **[BUG] Malformed End Dates in Club History (URLs in Date Fields)** - Priority: HIGH
+  > Carney Chukwemeka's club history displays "Borussia Dortmund (2025 - http)" -- the `end_date` field contains what appears to be a URL or URL fragment instead of a proper date. This indicates a data parsing bug in the extraction or import pipeline where non-date strings (likely Wikidata URIs or malformed API responses) are being stored in the `end_date` column of the `player_clubs` table.
   >
-  > This directly addresses the CRITICAL "Incorrect Team Assignments" bug by providing a second, more reliable data source for recent seasons.
-  > Added: 2026-02-07
+  > **Known example:** Carney Chukwemeka - Borussia Dortmund entry shows "http" as end date
+  > **Likely scope:** Probably affects other players too, not just this one case
+  >
+  > **Investigation steps:**
+  > 1. Query `player_clubs` for rows where `end_date` or `start_date` contains non-date strings (e.g., `WHERE end_date LIKE 'http%'` or does not match a date pattern)
+  > 2. Assess the scope -- how many rows are affected and which data source they came from
+  > 3. Trace the bug to the source: check `extract_wikidata.py` SPARQL result parsing, `fetch_club_histories.py`, and `merge_footballdata.py` for places where a URL or raw Wikidata value could leak into a date field
+  > 4. Add validation/sanitization at the point of insertion to reject or discard non-date values
+  > 5. Run a cleanup query to fix or NULL out existing malformed date values in `players.db`
+  >
+  > **Affected areas:** Player profile club history display, roster filtering by season (malformed dates may cause incorrect inclusion/exclusion), "Current" badge logic
+  > Added: 2026-02-09
 
-- **[DATA] Cap Club History at 2025-26 Season** - Priority: HIGH
-  > Club history and team roster data should not extend beyond the 2025-26 season. Currently, data from future seasons may appear if Wikidata or football-data.org sources contain forward-looking entries (e.g., pre-announced transfers for 2026-27).
+- **[BUG] Overlapping Club Stints Due to Missing End Dates** - Priority: HIGH
+  > Willy Caballero's club history shows him at both Boca Juniors and Chelsea simultaneously since 2017. In reality he left Chelsea and later joined Boca Juniors -- these should be sequential, not overlapping. This indicates that `end_date` is missing or incorrect for one or both `player_clubs` entries, causing the player to appear on two club rosters at the same time.
+  >
+  > **Known example:** Willy Caballero -- Chelsea and Boca Juniors both showing as active from 2017
+  > **Likely scope:** Probably affects other players with similar transfer situations where Wikidata lacks an end date for a prior club
+  >
+  > **Investigation steps:**
+  > 1. Query `player_clubs` for players with overlapping date ranges at multiple non-national-team clubs (e.g., two entries where `start_date` ranges overlap and neither has an `end_date`)
+  > 2. Assess scope -- how many players have simultaneous club memberships that are clearly incorrect
+  > 3. Determine root cause: is this a Wikidata source issue (missing end dates), or a bug in how `extract_wikidata.py` / `fetch_club_histories.py` / `merge_footballdata.py` handles transfers
+  > 4. Consider adding a post-import validation step that detects overlapping non-loan club stints and either:
+  >    - Infers end dates from the start of the next club (similar to what `merge_footballdata.py` already does for FD-matched players)
+  >    - Flags them for manual review
+  > 5. Clean up existing overlapping entries in `players.db`
+  >
+  > **Related:** The completed "Incorrect Team Assignments (Stale Data)" fix addressed some of this for football-data.org-matched players, but Wikidata-only players (not matched to FD data) may still have this problem.
+  > **Affected areas:** Player profile club history display, team rosters (player appearing on multiple rosters for the same season), "Current" badge logic
+  > Added: 2026-02-09
+
+- **[UX] Separate Club and National Team History** - Priority: HIGH
+  > Group club teams and national teams into distinct sections in the player club history display. Currently, club and national team entries are interleaved chronologically, making career history harder to read at a glance.
   >
   > **Changes needed:**
-  > 1. Add a season cap in the roster query logic (`clubs.py`) so that the year/season selector does not go beyond 2025-26
-  > 2. Filter out `player_clubs` entries with `start_date` beyond the 2025-26 season during data import (extraction scripts)
-  > 3. Ensure the `/clubs/{id}/years` endpoint returns a max year no later than 2025
-  > 4. Apply the same cap in the iOS app's roster browsing
+  > 1. Split the player's club history into two labeled groups: "Club Career" and "International Career"
+  > 2. Use the existing `is_national_team` boolean on `player_clubs` entries to determine grouping
+  > 3. Within each group, maintain chronological ordering
+  > 4. Apply to the full club history view in the player profile modal (web frontend)
+  > 5. Apply the same grouping in the iOS app's player detail view
   >
-  > Prevents confusion from speculative or pre-announced transfer data that has not actually taken effect yet.
-  > Added: 2026-02-08
-
-- **[DATA] Infer End Dates for Youth/Age-Restricted Teams** - Priority: HIGH
-  > Youth and age-restricted team entries (U16, U17, U18, U19, U20, U21) in a player's club history may show as "active" (no end_date) even when the player has aged out. Fix this by inferring an end date based on the player's date of birth and the age category of the team.
-  >
-  > **Logic:**
-  > - U16 team: end when player turns 17
-  > - U17 team: end when player turns 18
-  > - U18 team: end when player turns 19
-  > - U19 team: end when player turns 20
-  > - U20 team: end when player turns 21
-  > - U21 team: end when player turns 22
-  >
-  > **Implementation approach:**
-  > 1. Detect age-category teams by parsing club/team names for "U16", "U17", "U18", "U19", "U20", "U21", "under-16", "under-17", etc.
-  > 2. For entries missing an `end_date`, calculate the inferred end date from the player's `birth_date` plus the corresponding age limit + 1 year
-  > 3. Apply this as a data cleanup step (either at import time in extraction scripts or as a post-processing migration on `player_clubs`)
-  > 4. Ensure the roster query and player profile display reflect the corrected end dates so these teams no longer appear as "Current"
-  >
-  > **Affected areas:** Player profiles (club history, "Current" badge), team rosters (youth team rosters showing aged-out players)
-  > Added: 2026-02-08
-
-- **[UX] Clean Up Position Categories**
-  > Standardize position names throughout the Rosters page to reduce redundancy and confusion. Changes needed:
-  > - Rename "Wing half" → "Winger"
-  > - Unify "fullback" and "full-back" to single format
-  > - Review other position variants for similar duplicates
-  >
-  > Affects web and iOS apps. Improves clarity when browsing rosters and filtering players by position.
-  > Added: 2026-02-01
-
-- **[UX] Fix Year Formatting in Roster Display**
-  > Remove comma separators from year ranges in the Rosters page. Currently displays "2,024/25" but should display "2024/25". Affects both web and iOS apps throughout season year display.
-  > Added: 2026-02-01
+  > This is primarily a frontend/display change -- the backend already returns the `is_national_team` flag with each club history entry, so no API changes should be needed. Improves readability and follows the convention used on sites like Wikipedia and Transfermarkt.
+  > Added: 2026-02-09
 
 ### Medium Priority
 
@@ -180,24 +165,9 @@ Last updated: 2026-02-08 16:00
   > Allow multiple users to join the same session and guess in parallel. Implement real-time or near-real-time progress synchronization so players can see each other's guesses, player counts, and session leaderboards. Will require WebSocket support or polling mechanism for live updates.
   > Added: 2026-01-19
 
-- **[GAME] Give Up and Reveal All Players** - Priority: MEDIUM
-  > Add a "Give Up" feature that ends the current session and reveals all unguessed players in the roster view. Once the user gives up, they should no longer be able to submit new guesses.
-  >
-  > **Backend changes:**
-  > 1. Add a `given_up` boolean (or `given_up_at` timestamp) column to the `sessions` table
-  > 2. Add a new endpoint (e.g., `POST /api/sessions/{id}/give-up`) to mark the session as given up
-  > 3. Modify the guess endpoint (`POST /api/sessions/{id}/guess/{player_id}`) to reject guesses when the session is in a "given up" state
-  > 4. Modify the roster endpoint to return full player names (instead of "?????") when the session is given up
-  >
-  > **Frontend changes:**
-  > 1. Add a "Give Up" button (with confirmation dialog to prevent accidental clicks)
-  > 2. After giving up, reveal all unguessed player names in the roster view so the user can see who they missed
-  > 3. Disable the guess input field and submit button
-  > 4. Display a summary showing total guessed vs. total available players
-  > 5. Persist the given-up state so it survives page reloads
-  >
-  > **iOS app:** Will also need equivalent changes in the SwiftUI app if this feature is implemented on web first.
-  > Added: 2026-02-08
+- **[GAME] Revealed Player Enrichment** - Priority: MEDIUM
+  > When clicking revealed players in roster view after giving up, fetch full player details (clubs, career span, nationality) so the modal shows the same rich data as guessed players. Currently only shows name/position from roster data. Makes the post-game experience educational.
+  > Added: 2026-02-08 | Source: UX Review
 
 - **[GAME] Additional Sports Integration**
   > Extend data model and extraction scripts to support basketball and baseball in addition to soccer. Create abstracted sport-agnostic schema and UI that can display relevant statistics for each sport.
@@ -222,6 +192,25 @@ Last updated: 2026-02-08 16:00
 - **[UX] Mobile Touch Improvements**
   > Enhance mobile experience: (1) Increase touch targets slightly, (2) Add swipe-to-dismiss on modal, (3) Consider bottom-sheet style modal on mobile, (4) Haptic feedback on successful guesses.
   > Added: 2026-01-19 | Source: UX Review
+
+- **[UX] Sort Roster Players by Popularity** - Priority: MEDIUM
+  > Players in the team roster drilldown view are not sorted in a meaningful order. They should be sorted by some measure of popularity or importance so that the most recognizable players appear first, making it easier for users to scan rosters and recall names.
+  >
+  > **Possible sorting metrics (TBD -- may require experimentation):**
+  > 1. **Minutes played per season** -- available in `match_lineups` data from football-data.org; most directly reflects importance to the team in a given season
+  > 2. **Appearances per season** -- simpler variant of minutes; count of matches the player appeared in
+  > 3. **Wikipedia page views** -- proxy for general fame/recognizability; would require a new data source (Wikimedia REST API)
+  > 4. **Career caps / total appearances** -- available from Wikidata for some players; biased toward older players
+  > 5. **Composite score** -- combine multiple signals (e.g., appearances + page views) for a balanced ranking
+  >
+  > **Implementation considerations:**
+  > - May need a `popularity_score` or `sort_order` column on `player_clubs` or a separate ranking table
+  > - The roster API endpoint (`/api/clubs/{id}/roster`) would need to return players in the new order
+  > - Fallback sorting (e.g., alphabetical) needed for players without ranking data
+  > - Should apply to both web and iOS roster views
+  >
+  > The exact metric is open for experimentation. Starting with appearance counts from football-data.org lineup data may be the lowest-effort first step since that data is already in the system.
+  > Added: 2026-02-09
 
 - **[OTHER] Docker Containerization**
   > Create Docker Compose configuration for easy deployment. Include backend, frontend, and database services with volume mounts for persistence.
@@ -266,6 +255,18 @@ Last updated: 2026-02-08 16:00
   > Social feature to drive engagement and word-of-mouth promotion.
   > Added: 2026-01-26 | Source: UX Review
 
+- **[GAME] Post-Game Summary Screen** - Priority: LOW
+  > Show a summary overlay after giving up with stats: total guessed count, percentage, top nationalities guessed, position breakdown. Creates an emotional endpoint to the game session. Include a "Browse Results" button to dismiss.
+  > Added: 2026-02-08 | Source: UX Review
+
+- **[UX] Styled Give-Up Confirmation Dialog** - Priority: LOW
+  > Replace browser `confirm()` with an in-app styled dialog matching the game's visual language. Possibly add a brief undo toast after giving up. Maintains friction while keeping the experience polished.
+  > Added: 2026-02-08 | Source: UX Review
+
+- **[UX] Better Roster Visual Differentiation** - Priority: LOW
+  > Use distinct background colors instead of opacity for revealed vs guessed players. Add a legend/icons at top of roster explaining color coding. Consider a toggle to filter "only guessed" or "only revealed."
+  > Added: 2026-02-08 | Source: UX Review
+
 - **[OTHER] API Documentation Improvements**
   > Enhance Swagger/OpenAPI documentation with more detailed response examples, error codes, and ambiguity resolution flow. Add documentation for pagination (if implementing for large result sets).
   > Added: 2026-01-19
@@ -278,90 +279,33 @@ Last updated: 2026-02-08 16:00
 
 ## Completed
 
-- **[GAME] Player Info Display Settings**
-  > Implemented configurable display preferences for player information shown after a successful guess. Five toggleable fields via Settings UI:
-  > - Nationality (toggle)
-  > - Position (toggle)
-  > - Career Span, e.g. "2005-2020" or "2018-present" (toggle)
-  > - Top 3 Clubs by appearances (toggle)
-  > - Full Club History (toggle, requires Top 3 to be enabled)
-  >
-  > Settings persist in localStorage. Replaces the concept of "hints" with user-controlled display preferences.
-  > Completed: 2026-01-26 | Commit: 85bc42d
+- **[GAME] Give Up and Reveal All Players**
+  > Implemented "Give Up" feature allowing users to end a session and reveal all unguessed players.
+  > - Backend: Added `given_up_at` column to sessions table, `POST /sessions/{id}/give-up` endpoint, guess rejection when session is given up, `given_up` field in session response models
+  > - Frontend: Give Up button in settings modal with confirmation dialog, input/submit disabled after giving up, roster view reveals all player names (guessed in green, revealed in muted grey), revealed players clickable with basic modal, state persists across reloads
+  > - CSS: Revealed player styling (reduced opacity), disabled input styling, warning-colored give-up button
+  > Completed: 2026-02-08
 
-- **[GAME] Team Roster Lookup**
-  > Implemented exploration tool to help users recall players by browsing team rosters. Features:
-  > - Backend API: /api/clubs/search (club search with autocomplete), /api/clubs/{id}/roster (roster retrieval), /api/clubs/{id}/years (season/year selection)
-  > - Frontend: Dual-tab interface with "Guessed Players" and "Team Roster" tabs
-  > - Club search with autocomplete, roster display with season navigation
-  > - Guessed players shown in green, unguessed shown as "?????" (not revealed)
-  > - Toggleable in Settings under "Exploration Tools"
+- **[UX] Clean Up Position Categories**
+  > Standardized position names throughout the Rosters page to reduce redundancy and confusion:
+  > - Renamed "Wing half" to "Winger"
+  > - Unified "fullback" and "full-back" to single format
+  > - Reviewed and consolidated other position variant duplicates
   >
-  > Active discovery tool separate from passive display settings.
-  > Completed: 2026-01-26 | Commit: 85bc42d
+  > Affects web and iOS apps. Improves clarity when browsing rosters and filtering players by position.
+  > Completed: 2026-02-08
 
-- **[GAME] Filter Guessed Players**
-  > Implemented filtering controls for the guessed players list to help users organize and review their progress:
-  > - Position filter dropdown (Goalkeeper, Defender, Midfielder, Forward)
-  > - Nationality filter dropdown (auto-populated from guessed players)
-  > - Clear button to reset all active filters
-  > - All filters work together with existing text search
-  > - Nationality dropdown updates dynamically as new players are guessed
-  >
-  > Builds on existing filter infrastructure and helps users identify gaps in their knowledge by category.
-  > Completed: 2026-01-27
+- **[UX] Fix Year Formatting in Roster Display**
+  > Removed comma separators from year ranges in the Rosters page. Previously displayed "2,024/25", now correctly displays "2024/25". Fixed in both web and iOS apps throughout season year display.
+  > Completed: 2026-02-08
 
-- **[PERF] Full-Text Search (FTS5)**
-  > Implemented SQLite FTS5 virtual table with unicode61 tokenizer for comprehensive full-text search capabilities. Features:
-  > - FTS5 virtual table with auto-sync triggers to keep index updated
-  > - fts_search() function for fast prefix-based player lookup
-  > - fts_search_fuzzy() function combining FTS5 with Levenshtein distance filtering
-  > - Handles common typos: "ronaldino" → Ronaldinho, "naymar" → Neymar, "christiano" → Cristiano
-  > - Seamlessly integrated into /api/players/lookup endpoint as fallback when exact/prefix match fails
-  >
-  > Significantly improves UX for users making typos and expands fuzzy matching capabilities beyond Levenshtein distance alone.
-  > Completed: 2026-01-27
+- **[DATA] Cap Club History at 2025-26 Season**
+  > Club history and team roster data no longer extends beyond the 2025-26 season. Implemented season cap in roster query logic, filtered out player_clubs entries with start_date beyond the 2025-26 season, and ensured the /clubs/{id}/years endpoint returns a max year no later than 2025. Prevents confusion from speculative or pre-announced transfer data.
+  > Completed: 2026-02-08
 
-- **[UX] Smart Name Matching**
-  > Comprehensive name matching system that balances usability with game integrity. Features:
-  > - **Typo tolerance**: FTS5 + Levenshtein distance with length-based thresholds (0 edits for ≤4 chars, 1 for 5-8, 2 for 9+)
-  > - **First + last name requirement**: Players must be guessed with full name (e.g., "Lionel Messi" not just "Messi")
-  > - **Mononym support**: ~50 players known by single names (Pelé, Neymar, Ronaldinho, etc.) can be guessed with one name
-  > - **Length ratio check**: Prevents "Ronaldo" from matching "Ronaldinho" (must be within 20% length)
-  > - **Phonetic algorithms**: Soundex and Metaphone for sound-alike matching
-  >
-  > Design decision: Disambiguation UI (showing candidates when multiple players match) was intentionally omitted to keep the game challenging. When ambiguous, users must provide more specific names.
-  >
-  > Key files: `fuzzy_matching.py`, `database.py` (FTS5 functions), `players.py` (KNOWN_MONONYMS)
-  > Completed: 2026-01-27 | Combines: FTS5, fuzzy matching algorithms, first+last name requirement
-
-- **[UX] Recently Viewed Clubs Quick Access**
-  > Quick access to recently viewed clubs in Team Roster Lookup. Features:
-  > - Stores up to 5 most recently viewed clubs in localStorage
-  > - Displays as clickable chips below the search input
-  > - Clicking a chip immediately loads that club's roster
-  > - **Active club highlighting**: Currently viewed club is highlighted in blue
-  > - **Clear button**: × button to clear all recent clubs
-  > - Chips have hover/focus states, staggered animations, and responsive design
-  > - List updates automatically when new clubs are viewed (most recent first)
-  >
-  > Speeds up workflow for users who frequently browse the same team rosters.
-  > Key files: `frontend/app.js` (recentClubs state, render functions), `frontend/styles.css` (.recent-club-chip)
-  > Completed: 2026-01-27
-
-- **[UX] Clickable Team Links in Player Profiles**
-  > All team names in player profiles are now clickable, navigating to that team's roster. Features:
-  > - **Nationality link**: Clicks navigate to the national team roster (searches for "[Country] national team")
-  > - **Top Clubs links**: Each club name is clickable, opens that club's roster
-  > - **Full Club History links**: Every club/team in the history is clickable
-  > - **Current team highlighting**: Teams where player is still active (no end_date) show:
-  >   - Blue gradient background in club history
-  >   - "Current" badge next to the team name
-  >   - Bold text in top clubs list
-  >
-  > Creates seamless navigation between player profiles and team rosters for exploration.
-  > Key files: `frontend/app.js` (navigateToClubRoster, navigateToNationalTeam), `frontend/styles.css` (.club-link, .current-club)
-  > Completed: 2026-01-27
+- **[DATA] Infer End Dates for Youth/Age-Restricted Teams**
+  > Youth and age-restricted team entries (U16-U21) in player club histories now have inferred end dates based on the player's date of birth and the team's age category. Players who have aged out no longer show as "Current" on youth teams. Implemented as a data cleanup step affecting player profiles and team rosters.
+  > Completed: 2026-02-08
 
 - **[BUG] Team Roster Shows Too Many Players**
   > Team rosters are showing far too many players (Dortmund: 79, Juventus: 200+). Fixed by filtering corrupted dates and adding tenure heuristic to properly filter players by season. The roster query now correctly includes only players active in the selected season.
@@ -403,6 +347,20 @@ Last updated: 2026-02-08 16:00
 - **[META] Reset Progress Button**
   > Added "Reset Progress" button to settings modal allowing users to clear all guessed players and start fresh. Includes confirmation dialog showing current player count before resetting.
   > Completed: 2026-02-07
+
+- **[BUG] Incorrect Team Assignments (Stale Data)**
+  > Fixed by merging football-data.org squad data into players.db. Added `is_stale` flag to `player_clubs` table to mark outdated records where a player's current team is unclear. Stale records show as "Unconfirmed" in the UI instead of "Current". End dates are inferred from sequential transfers in FD data, and pre-FD records get end dates based on when the player's first FD club started.
+  > Completed: 2026-02-08
+
+- **[DATA] Merge Football-data.org Data into players.db**
+  > Built `backend/scripts/merge_footballdata.py` — a 4-step merge script:
+  > 1. **Schema migration**: Added `is_stale` column to `player_clubs`, created `club_aliases` table
+  > 2. **Club matching**: Matched 230/259 FD teams to game DB clubs via normalized names, suffix stripping, and bootstrap alias mapping
+  > 3. **Player matching**: Matched 2,761/10,796 FD persons by name (+ DOB disambiguation for ambiguous names)
+  > 4. **Association updates**: Added 1,734 new player-club links, marked 958 stale records, inferred 1,952 end dates from transfer sequences
+  >
+  > Also updated `clubs.py` to filter stale records from rosters/search and search club aliases, and `players.py`/frontend to expose and display the stale flag.
+  > Completed: 2026-02-08
 
 - **[DATA] Football-data.org Extraction Tool**
   > Built `backend/scripts/extract_footballdata.py` -- a self-contained extraction tool for football-data.org's free API tier. Features:

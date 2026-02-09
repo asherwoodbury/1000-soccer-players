@@ -2,7 +2,7 @@
 Player lookup and search endpoints.
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 import unicodedata
@@ -148,6 +148,63 @@ class AmbiguousPlayerResult(BaseModel):
     message: str
 
 
+def build_player_response(player_id: int, name: str, nationality: str, position: str) -> PlayerResponse:
+    """Build a full PlayerResponse with club history for a given player."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT c.name, pc.start_date, pc.end_date, pc.is_national_team, pc.is_stale
+        FROM player_clubs pc
+        JOIN clubs c ON pc.club_id = c.id
+        WHERE pc.player_id = ?
+        ORDER BY pc.start_date
+    """, (player_id,))
+
+    club_rows = cursor.fetchall()
+    conn.close()
+
+    clubs = [
+        ClubHistory(
+            name=row['name'],
+            display_name=format_national_team_name(row['name']) if row['is_national_team'] else row['name'],
+            start_date=row['start_date'],
+            end_date=row['end_date'],
+            is_national_team=bool(row['is_national_team']),
+            is_stale=bool(row['is_stale'])
+        )
+        for row in club_rows
+    ]
+
+    non_national_clubs = [c for c in clubs if not c.is_national_team]
+    club_durations = []
+    for club in non_national_clubs:
+        duration = calculate_club_duration_years(club.start_date, club.end_date)
+        club_durations.append((club.display_name, duration))
+
+    club_durations.sort(key=lambda x: x[1], reverse=True)
+    seen_clubs = set()
+    top_clubs = []
+    for club_name, _ in club_durations:
+        if club_name not in seen_clubs:
+            seen_clubs.add(club_name)
+            top_clubs.append(club_name)
+            if len(top_clubs) >= 3:
+                break
+
+    career_span = calculate_career_span(clubs)
+
+    return PlayerResponse(
+        id=player_id,
+        name=name,
+        nationality=nationality,
+        position=position,
+        clubs=clubs,
+        top_clubs=top_clubs,
+        career_span=career_span
+    )
+
+
 @router.get("/lookup", response_model=PlayerLookupResult | AmbiguousPlayerResult)
 async def lookup_player(name: str = Query(..., min_length=2, description="Player name to look up")):
     """
@@ -236,65 +293,12 @@ async def lookup_player(name: str = Query(..., min_length=2, description="Player
     # Found exactly one player (or multiple entries for same player)
     player = rows[0]
     player_id = player['id']
-
-    # Get club history
-    cursor.execute("""
-        SELECT c.name, pc.start_date, pc.end_date, pc.is_national_team, pc.is_stale
-        FROM player_clubs pc
-        JOIN clubs c ON pc.club_id = c.id
-        WHERE pc.player_id = ?
-        ORDER BY pc.start_date
-    """, (player_id,))
-
-    club_rows = cursor.fetchall()
     conn.close()
-
-    clubs = [
-        ClubHistory(
-            name=row['name'],
-            display_name=format_national_team_name(row['name']) if row['is_national_team'] else row['name'],
-            start_date=row['start_date'],
-            end_date=row['end_date'],
-            is_national_team=bool(row['is_national_team']),
-            is_stale=bool(row['is_stale'])
-        )
-        for row in club_rows
-    ]
-
-    # Calculate top clubs by duration (non-national teams only)
-    non_national_clubs = [c for c in clubs if not c.is_national_team]
-
-    # Calculate duration for each club and sort by duration
-    club_durations = []
-    for club in non_national_clubs:
-        duration = calculate_club_duration_years(club.start_date, club.end_date)
-        # Use display_name for the top_clubs list
-        club_durations.append((club.display_name, duration))
-
-    # Sort by duration descending, take top 3 unique club names
-    club_durations.sort(key=lambda x: x[1], reverse=True)
-    seen_clubs = set()
-    top_clubs = []
-    for club_name, _ in club_durations:
-        if club_name not in seen_clubs:
-            seen_clubs.add(club_name)
-            top_clubs.append(club_name)
-            if len(top_clubs) >= 3:
-                break
-
-    # Calculate career span
-    career_span = calculate_career_span(clubs)
 
     return PlayerLookupResult(
         found=True,
-        player=PlayerResponse(
-            id=player_id,
-            name=player['name'],
-            nationality=player['nationality'],
-            position=player['position'],
-            clubs=clubs,
-            top_clubs=top_clubs,
-            career_span=career_span
+        player=build_player_response(
+            player_id, player['name'], player['nationality'], player['position']
         ),
         message="Player found!"
     )
@@ -340,3 +344,22 @@ async def get_player_stats():
         "top_nationalities": top_nationalities,
         "top_positions": top_positions
     }
+
+
+@router.get("/{player_id}", response_model=PlayerResponse)
+async def get_player(player_id: int):
+    """Get full player details by ID."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id, name, nationality, position FROM players WHERE id = ?",
+        (player_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    return build_player_response(row['id'], row['name'], row['nationality'], row['position'])
