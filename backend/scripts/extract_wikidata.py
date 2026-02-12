@@ -23,6 +23,21 @@ from app.models.database import get_db_connection, init_database, DATABASE_PATH
 
 WIKIDATA_ENDPOINT = "https://query.wikidata.org/sparql"
 
+
+def parse_wikidata_date(value: Optional[str]) -> Optional[str]:
+    """
+    Extract a YYYY-MM-DD date from a Wikidata value, returning None for
+    non-date values (URLs, garbage strings). Replaces the naive [:10] slice
+    that could turn URIs like 'http://www...' into 'http://www'.
+    """
+    if not value:
+        return None
+    # Take first 10 chars (handles full ISO timestamps like '2020-01-15T00:00:00Z')
+    candidate = value[:10]
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', candidate):
+        return candidate
+    return None
+
 HEADERS = {
     "Accept": "application/sparql-results+json",
     "User-Agent": "SoccerPlayerApp/1.0 (personal project for naming 1000 soccer players)"
@@ -152,7 +167,7 @@ def fetch_mens_league_players(league_name: str, league_id: str, min_year: int = 
                 "name": name,
                 "nationality": result.get("nationalityLabel", {}).get("value"),
                 "position": result.get("positionLabel", {}).get("value"),
-                "birth_date": result.get("birthDate", {}).get("value", "")[:10] if result.get("birthDate") else None,
+                "birth_date": parse_wikidata_date(result.get("birthDate", {}).get("value")) if result.get("birthDate") else None,
                 "gender": "male",
                 "league": league_name,
             }
@@ -206,7 +221,7 @@ def fetch_womens_players(limit: int = 10000) -> list[dict]:
                 "name": name,
                 "nationality": result.get("nationalityLabel", {}).get("value"),
                 "position": result.get("positionLabel", {}).get("value"),
-                "birth_date": result.get("birthDate", {}).get("value", "")[:10] if result.get("birthDate") else None,
+                "birth_date": parse_wikidata_date(result.get("birthDate", {}).get("value")) if result.get("birthDate") else None,
                 "gender": "female",
                 "league": "Women's Football",
             }
@@ -252,8 +267,8 @@ def fetch_player_club_history(wikidata_id: str) -> list[dict]:
         clubs.append({
             "wikidata_id": result.get("clubId", {}).get("value"),
             "name": club_name,
-            "start_date": result.get("startTime", {}).get("value", "")[:10] if result.get("startTime") else None,
-            "end_date": result.get("endTime", {}).get("value", "")[:10] if result.get("endTime") else None,
+            "start_date": parse_wikidata_date(result.get("startTime", {}).get("value")) if result.get("startTime") else None,
+            "end_date": parse_wikidata_date(result.get("endTime", {}).get("value")) if result.get("endTime") else None,
             "is_national_team": result.get("isNationalTeam", {}).get("value") == "true",
         })
 

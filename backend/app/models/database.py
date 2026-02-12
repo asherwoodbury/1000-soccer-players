@@ -166,7 +166,88 @@ def init_database():
 
     conn.commit()
     conn.close()
+
+    # Clean up malformed dates on every startup
+    sanitize_dates()
+
     print(f"Database initialized at {DATABASE_PATH}")
+
+
+def sanitize_dates():
+    """
+    NULL out any start_date or end_date in player_clubs that doesn't match
+    a valid date pattern (YYYY-MM-DD or YYYY).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # NULL out malformed end_date values
+    cursor.execute("""
+        UPDATE player_clubs
+        SET end_date = NULL
+        WHERE end_date IS NOT NULL
+          AND end_date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+          AND end_date NOT GLOB '[0-9][0-9][0-9][0-9]'
+    """)
+    end_cleaned = cursor.rowcount
+
+    # NULL out malformed start_date values
+    cursor.execute("""
+        UPDATE player_clubs
+        SET start_date = NULL
+        WHERE start_date IS NOT NULL
+          AND start_date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+          AND start_date NOT GLOB '[0-9][0-9][0-9][0-9]'
+    """)
+    start_cleaned = cursor.rowcount
+
+    conn.commit()
+    conn.close()
+
+    total = end_cleaned + start_cleaned
+    if total > 0:
+        print(f"  Sanitized dates: {end_cleaned} end_date + {start_cleaned} start_date = {total} rows cleaned")
+
+
+def infer_club_end_dates():
+    """
+    Infer missing end_date for non-national-team club records.
+
+    For each club stint with no end_date, set it to the start_date of the
+    player's next chronological non-national-team club. Only applies when
+    both records have valid start dates.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE player_clubs
+        SET end_date = (
+            SELECT MIN(pc2.start_date)
+            FROM player_clubs pc2
+            WHERE pc2.player_id = player_clubs.player_id
+              AND pc2.is_national_team = 0
+              AND pc2.start_date > player_clubs.start_date
+              AND pc2.start_date IS NOT NULL
+              AND pc2.id != player_clubs.id
+        )
+        WHERE end_date IS NULL
+          AND is_national_team = 0
+          AND start_date IS NOT NULL
+          AND EXISTS (
+              SELECT 1 FROM player_clubs pc2
+              WHERE pc2.player_id = player_clubs.player_id
+                AND pc2.is_national_team = 0
+                AND pc2.start_date > player_clubs.start_date
+                AND pc2.start_date IS NOT NULL
+                AND pc2.id != player_clubs.id
+          )
+    """)
+    count = cursor.rowcount
+
+    conn.commit()
+    conn.close()
+    print(f"  Inferred {count} club end dates from next club start dates")
 
 
 def infer_youth_end_dates():

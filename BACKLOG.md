@@ -32,8 +32,8 @@ Last updated: 2026-02-09 15:00
 | Item | Priority |
 |------|----------|
 | Incorrect Team Assignments (Stale Data) | COMPLETED |
-| Malformed End Dates in Club History (URLs in Date Fields) | HIGH |
-| Overlapping Club Stints Due to Missing End Dates | HIGH |
+| Malformed End Dates in Club History (URLs in Date Fields) | COMPLETED |
+| Overlapping Club Stints Due to Missing End Dates | COMPLETED |
 
 ### Data (DATA)
 | Item | Priority |
@@ -86,41 +86,6 @@ Last updated: 2026-02-09 15:00
 ## To Do
 
 ### High Priority
-
-- **[BUG] Malformed End Dates in Club History (URLs in Date Fields)** - Priority: HIGH
-  > Carney Chukwemeka's club history displays "Borussia Dortmund (2025 - http)" -- the `end_date` field contains what appears to be a URL or URL fragment instead of a proper date. This indicates a data parsing bug in the extraction or import pipeline where non-date strings (likely Wikidata URIs or malformed API responses) are being stored in the `end_date` column of the `player_clubs` table.
-  >
-  > **Known example:** Carney Chukwemeka - Borussia Dortmund entry shows "http" as end date
-  > **Likely scope:** Probably affects other players too, not just this one case
-  >
-  > **Investigation steps:**
-  > 1. Query `player_clubs` for rows where `end_date` or `start_date` contains non-date strings (e.g., `WHERE end_date LIKE 'http%'` or does not match a date pattern)
-  > 2. Assess the scope -- how many rows are affected and which data source they came from
-  > 3. Trace the bug to the source: check `extract_wikidata.py` SPARQL result parsing, `fetch_club_histories.py`, and `merge_footballdata.py` for places where a URL or raw Wikidata value could leak into a date field
-  > 4. Add validation/sanitization at the point of insertion to reject or discard non-date values
-  > 5. Run a cleanup query to fix or NULL out existing malformed date values in `players.db`
-  >
-  > **Affected areas:** Player profile club history display, roster filtering by season (malformed dates may cause incorrect inclusion/exclusion), "Current" badge logic
-  > Added: 2026-02-09
-
-- **[BUG] Overlapping Club Stints Due to Missing End Dates** - Priority: HIGH
-  > Willy Caballero's club history shows him at both Boca Juniors and Chelsea simultaneously since 2017. In reality he left Chelsea and later joined Boca Juniors -- these should be sequential, not overlapping. This indicates that `end_date` is missing or incorrect for one or both `player_clubs` entries, causing the player to appear on two club rosters at the same time.
-  >
-  > **Known example:** Willy Caballero -- Chelsea and Boca Juniors both showing as active from 2017
-  > **Likely scope:** Probably affects other players with similar transfer situations where Wikidata lacks an end date for a prior club
-  >
-  > **Investigation steps:**
-  > 1. Query `player_clubs` for players with overlapping date ranges at multiple non-national-team clubs (e.g., two entries where `start_date` ranges overlap and neither has an `end_date`)
-  > 2. Assess scope -- how many players have simultaneous club memberships that are clearly incorrect
-  > 3. Determine root cause: is this a Wikidata source issue (missing end dates), or a bug in how `extract_wikidata.py` / `fetch_club_histories.py` / `merge_footballdata.py` handles transfers
-  > 4. Consider adding a post-import validation step that detects overlapping non-loan club stints and either:
-  >    - Infers end dates from the start of the next club (similar to what `merge_footballdata.py` already does for FD-matched players)
-  >    - Flags them for manual review
-  > 5. Clean up existing overlapping entries in `players.db`
-  >
-  > **Related:** The completed "Incorrect Team Assignments (Stale Data)" fix addressed some of this for football-data.org-matched players, but Wikidata-only players (not matched to FD data) may still have this problem.
-  > **Affected areas:** Player profile club history display, team rosters (player appearing on multiple rosters for the same season), "Current" badge logic
-  > Added: 2026-02-09
 
 - **[UX] Separate Club and National Team History** - Priority: HIGH
   > Group club teams and national teams into distinct sections in the player club history display. Currently, club and national team entries are interleaved chronologically, making career history harder to read at a glance.
@@ -278,6 +243,14 @@ Last updated: 2026-02-09 15:00
 ---
 
 ## Completed
+
+- **[BUG] Malformed End Dates in Club History (URLs in Date Fields)**
+  > Fixed malformed dates in `player_clubs` where `end_date` or `start_date` contained URL fragments (e.g., `'http://www'`) or garbage strings (e.g., `'20009-01-0'`) from naive `[:10]` slicing on Wikidata URI values. Added `sanitize_dates()` to `database.py` that NULLs out any date not matching `YYYY-MM-DD` or `YYYY` patterns, called on every DB init. Added `parse_wikidata_date()` validation helper to extraction scripts to prevent future insertion of non-date values. Cleaned ~287 existing rows.
+  > Completed: 2026-02-11
+
+- **[BUG] Overlapping Club Stints Due to Missing End Dates**
+  > Fixed ~11k players showing simultaneous memberships at multiple clubs due to missing `end_date` values from Wikidata. Added `infer_club_end_dates()` to `database.py` that sets each non-national-team club's `end_date` to the `start_date` of the player's next chronological club, using a single SQL update. Resolves cases like Willy Caballero appearing at both Chelsea and Boca Juniors simultaneously.
+  > Completed: 2026-02-11
 
 - **[GAME] Give Up and Reveal All Players**
   > Implemented "Give Up" feature allowing users to end a session and reveal all unguessed players.

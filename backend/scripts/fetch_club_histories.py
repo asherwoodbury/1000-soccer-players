@@ -18,7 +18,8 @@ from extract_wikidata import (
     run_sparql_query,
     insert_club,
     insert_player_club,
-    normalize_name
+    normalize_name,
+    parse_wikidata_date,
 )
 
 
@@ -80,8 +81,8 @@ def fetch_club_histories_batch(wikidata_ids: list[str]) -> dict[str, list[dict]]
         player_clubs[player_id].append({
             "wikidata_id": club_id,
             "name": club_name,
-            "start_date": result.get("startTime", {}).get("value", "")[:10] if result.get("startTime") else None,
-            "end_date": result.get("endTime", {}).get("value", "")[:10] if result.get("endTime") else None,
+            "start_date": parse_wikidata_date(result.get("startTime", {}).get("value")) if result.get("startTime") else None,
+            "end_date": parse_wikidata_date(result.get("endTime", {}).get("value")) if result.get("endTime") else None,
             "is_national_team": "national" in club_name.lower() or result.get("isNationalTeam", {}).get("value") == "true",
         })
 
